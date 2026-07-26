@@ -173,6 +173,12 @@ input,select{-webkit-user-select:text;user-select:text;}
 .fav-tag.ex{background:#e3f7f4;color:var(--ex);}
 .fav-name{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .fav-kcal{font-family:var(--mono);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;}
+.fav-edit{border:1px solid var(--line);background:#fff;color:var(--sky-deep);font-family:inherit;
+  font-weight:700;font-size:12px;padding:5px 10px;border-radius:999px;cursor:pointer;flex-shrink:0;}
+.fav-row.editing{background:var(--sky-soft);}
+.fav-cancel{display:block;width:calc(100% - 24px);margin:0 12px 12px;border:1px solid var(--line);
+  background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13px;
+  padding:10px;border-radius:10px;cursor:pointer;}
 .fav-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
 .fav-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#f7fafd;
   border-radius:999px;padding:7px 12px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--ink);}
@@ -391,8 +397,9 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         </select>
         <input id="fav-name" class="in-name" type="text" placeholder="이름 (예: 아메리카노)" />
         <input id="fav-kcal" class="in-kcal" type="number" inputmode="numeric" placeholder="kcal" onkeydown="if(event.key==='Enter')addFav()" />
-        <button class="btn primary" onclick="addFav()">등록</button>
+        <button id="fav-submit" class="btn primary" onclick="addFav()">등록</button>
       </div>
+      <button id="fav-cancel" class="fav-cancel" hidden onclick="cancelEditFav()">수정 취소</button>
       <div id="fav-list" class="fav-list"></div>
     </div>
     <div class="set-group">
@@ -464,6 +471,7 @@ var state = load();
 var _now = new Date(), calYear = _now.getFullYear(), calMonth = _now.getMonth();
 var selectedDate = null, activeTab = "home", ledgerSub = "stack", inputOpen = false, _confirmAction = null, _toastTimer = null;
 var profileShown = false;
+var _editFav = null;
 
 function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); var s=Object.assign(defaultState(),JSON.parse(raw)); if(!Array.isArray(s.favs))s.favs=[]; return s; }catch(e){ return defaultState(); } }
 function save(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(state)); }catch(e){} }
@@ -682,25 +690,45 @@ function addFav(){
   var n=$("#fav-name").value.trim(), k=Math.round(Number($("#fav-kcal").value)), t=$("#fav-kind").value;
   if(!n){ $("#fav-name").focus(); return; }
   if(!k||k<=0){ $("#fav-kcal").focus(); return; }
-  state.favs.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:n,kcal:k,kind:t});
-  save(); $("#fav-name").value=""; $("#fav-kcal").value="";
-  renderSettings(); toast("즐겨찾기에 추가했어요");
+  var wasEdit=_editFav;
+  if(_editFav){
+    var f=state.favs.find(function(x){return x.id===_editFav;});
+    if(f){ f.name=n; f.kcal=k; f.kind=t; }
+    _editFav=null;
+  } else {
+    state.favs.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:n,kcal:k,kind:t});
+  }
+  save(); $("#fav-name").value=""; $("#fav-kcal").value=""; $("#fav-kind").value="food";
+  renderSettings(); toast(wasEdit?"즐겨찾기를 수정했어요":"즐겨찾기에 추가했어요");
 }
+function editFav(id){
+  var f=state.favs.find(function(x){return x.id===id;}); if(!f) return;
+  _editFav=id; $("#fav-kind").value=f.kind; $("#fav-name").value=f.name; $("#fav-kcal").value=f.kcal;
+  renderFavSettings(); $("#fav-name").focus();
+}
+function cancelEditFav(){ _editFav=null; $("#fav-name").value=""; $("#fav-kcal").value=""; $("#fav-kind").value="food"; renderFavSettings(); }
 function delFav(id){
-  var i=state.favs.findIndex(function(f){return f.id===id;});
-  if(i>-1) state.favs.splice(i,1);
-  save(); render();
+  var f=state.favs.find(function(x){return x.id===id;});
+  confirmSheet("삭제할까요?", (f?("'"+f.name+"' "):"")+"즐겨찾기를 삭제해요.", "삭제", function(){
+    if(_editFav===id){ _editFav=null; $("#fav-name").value=""; $("#fav-kcal").value=""; }
+    var i=state.favs.findIndex(function(x){return x.id===id;});
+    if(i>-1) state.favs.splice(i,1);
+    save(); render(); toast("삭제했어요");
+  });
 }
 function renderFavSettings(){
+  $("#fav-submit").textContent = _editFav ? "수정 완료" : "등록";
+  $("#fav-cancel").hidden = !_editFav;
   var wrap=$("#fav-list"); wrap.innerHTML="";
   if(!state.favs.length){ wrap.appendChild(el("p","empty","등록한 즐겨찾기가 없어요.")); return; }
   state.favs.forEach(function(f){
-    var row=el("div","fav-row");
+    var row=el("div","fav-row"+(f.id===_editFav?" editing":""));
     row.appendChild(el("span","fav-tag "+(f.kind==="food"?"food":"ex"), f.kind==="food"?"먹음":"운동"));
     row.appendChild(el("span","fav-name",f.name));
     row.appendChild(el("span","fav-kcal",(f.kind==="food"?"−":"+")+fmt(f.kcal)));
+    var ed=el("button","fav-edit","수정"); ed.setAttribute("onclick","editFav('"+f.id+"')");
     var del=el("button","entry-del","✕"); del.setAttribute("aria-label","삭제"); del.setAttribute("onclick","delFav('"+f.id+"')");
-    row.appendChild(del); wrap.appendChild(row);
+    row.appendChild(ed); row.appendChild(del); wrap.appendChild(row);
   });
 }
 function renderFavChips(){

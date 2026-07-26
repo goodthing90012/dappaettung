@@ -55,6 +55,29 @@ input,select{-webkit-user-select:text;user-select:text;}
   font-family:inherit;font-weight:800;font-size:15px;padding:12px;cursor:pointer;}
 .hero-btn:active{transform:scale(.98);}
 
+/* ---------- credit / loan card ---------- */
+.credit-card{display:flex;align-items:stretch;background:var(--card);border:1px solid var(--line);
+  border-radius:18px;padding:16px;margin-top:14px;}
+.credit-half{flex:1;text-align:center;}
+.credit-div{width:1px;background:var(--line);margin:0 8px;}
+.ch-label{font-size:12px;color:var(--ink-soft);}
+.credit-grade{font-size:21px;font-weight:800;margin:5px 0 3px;letter-spacing:-0.02em;white-space:nowrap;}
+.credit-grade.g1{color:#2e7fd6;} .credit-grade.g2{color:#2e9e6b;} .credit-grade.g3{color:#e0a63c;}
+.credit-grade.g4{color:#e8674c;} .credit-grade.g5{color:#d23b3b;}
+.credit-badge{display:inline-flex;align-items:center;justify-content:center;line-height:1;font-size:13px;font-weight:800;color:#fff;padding:6px 12px;border-radius:999px;margin:2px 0 4px;letter-spacing:-0.01em;}
+.credit-badge.g1{background:#2e7fd6;} .credit-badge.g2{background:#2e9e6b;} .credit-badge.g3{background:#e0a63c;}
+.credit-badge.g4{background:#e8674c;} .credit-badge.g5{background:#d23b3b;}
+.loan-count{font-size:26px;font-weight:800;margin:4px 0 2px;color:var(--ink);}
+.ch-sub{font-size:11px;color:var(--ink-soft);}
+
+/* ---------- entry inline edit ---------- */
+.entry.tap{cursor:pointer;}
+.entry.editing{gap:6px;}
+.entry.editing .in-name{flex:1;min-width:0;}
+.entry.editing .in-kcal{width:64px;}
+.ee-btn{padding:9px 10px;font-size:13px;}
+.backup-import{cursor:pointer;}
+
 /* ---------- calendar ---------- */
 .cal-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;margin-top:14px;}
 .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
@@ -327,6 +350,21 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <button id="hero-add" class="hero-btn" onclick="selectDate(todayKey())">＋ 오늘 기록하기</button>
     </div>
 
+    <div class="credit-card">
+      <div class="credit-half">
+        <div class="ch-label">텅장등급</div>
+        <div id="credit-grade" class="credit-grade g1">텅장 재벌</div>
+        <div id="credit-badge" class="credit-badge g1">1등급</div>
+        <div id="credit-sub" class="ch-sub">아주 좋아요</div>
+      </div>
+      <div class="credit-div"></div>
+      <div class="credit-half">
+        <div class="ch-label">대출 횟수</div>
+        <div id="loan-count" class="loan-count">0회</div>
+        <div id="loan-sub" class="ch-sub">깨끗해요</div>
+      </div>
+    </div>
+
     <div class="cal-card">
       <div class="cal-head">
         <button id="cal-prev" class="cal-nav" aria-label="이전 달" onclick="calMove(-1)">‹</button>
@@ -446,6 +484,18 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <div id="fav-list" class="fav-list"></div>
     </div>
     <div class="set-group">
+      <div class="set-row" onclick="backupData()">
+        <div class="set-k">백업 (내보내기)</div>
+        <span class="set-arrow">›</span>
+      </div>
+      <label class="set-row backup-import">
+        <div class="set-k">불러오기 (가져오기)</div>
+        <input type="file" accept="application/json,.json" onchange="importData(this)" hidden />
+        <span class="set-arrow">›</span>
+      </label>
+    </div>
+
+    <div class="set-group">
       <div class="set-row danger" id="reset-all" onclick="resetAll()">
         <div class="set-k">전체 초기화</div>
         <span class="set-arrow">›</span>
@@ -540,6 +590,7 @@ var _now = new Date(), calYear = _now.getFullYear(), calMonth = _now.getMonth();
 var selectedDate = null, activeTab = "home", ledgerSub = "stack", inputOpen = false, _confirmAction = null, _toastTimer = null;
 var profileShown = false;
 var _editFav = null;
+var _editEntry = null;
 var _fltPeriod="all", _fltType="all", _showBal=true, _tmpP="all", _tmpT="all";
 
 function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); var s=Object.assign(defaultState(),JSON.parse(raw)); if(!Array.isArray(s.favs))s.favs=[]; return s; }catch(e){ return defaultState(); } }
@@ -591,6 +642,13 @@ function renderHome(){
   $("#hero-caption").textContent=left<0?"오늘 텅장을 넘겼어요":"오늘 더 먹을 수 있어요";
   $("#hero-goal").textContent=fmt(d.goal||state.goal); $("#hero-eaten").textContent=fmt(consumed); $("#hero-burned").textContent=fmt(burned);
   var bal=balance(); $("#hero-bal").textContent=signed(bal); $("#hero-bal").className=bal<0?"neg":""; $("#hero-bal-label").textContent=bal<0?"대출 중":"모아둔 칼로리";
+  var cr=computeCredit();
+  var NICK=["","텅장 재벌","알뜰 부자","평범 텅민","위태 텅민","텅장 파산"];
+  $("#credit-grade").textContent=NICK[cr.grade]; $("#credit-grade").className="credit-grade g"+cr.grade;
+  $("#credit-badge").textContent=cr.grade+"등급"; $("#credit-badge").className="credit-badge g"+cr.grade;
+  $("#credit-sub").textContent=cr.inLoan?"상환하면 회복":(cr.loans>0?"잘 갚는 중 👍":"아주 좋아요");
+  $("#loan-count").textContent=cr.loans+"회";
+  $("#loan-sub").textContent=cr.inLoan?"현재 대출 중":(cr.repays>0?cr.repays+"회 상환 성공":"깨끗해요");
   renderCalendar();
 }
 function renderCalendar(){
@@ -632,10 +690,20 @@ function renderInput(){
   var rows=d.food.map(function(e){return {id:e.id,name:e.name,kcal:e.kcal,kind:"food"};}).concat(d.exercise.map(function(e){return {id:e.id,name:e.name,kcal:e.kcal,kind:"ex"};}));
   if(!rows.length){ list.appendChild(el("p","empty","이 날 기록이 아직 없어요. 위에서 추가해요.")); return; }
   rows.forEach(function(r){
-    var row=el("div","entry "+r.kind);
+    if(_editEntry && _editEntry.id===r.id){
+      var erow=el("div","entry editing "+r.kind);
+      var ni=document.createElement("input"); ni.id="ee-name"; ni.className="in-name"; ni.type="text"; ni.value=r.name||""; ni.setAttribute("placeholder","이름");
+      var ki=document.createElement("input"); ki.id="ee-kcal"; ki.className="in-kcal"; ki.type="number"; ki.setAttribute("inputmode","numeric"); ki.value=r.kcal;
+      ki.setAttribute("onkeydown","if(event.key==='Enter')saveEntryEdit()");
+      var sv=el("button","btn primary ee-btn","저장"); sv.setAttribute("onclick","saveEntryEdit()");
+      var cn=el("button","btn ghost ee-btn","취소"); cn.setAttribute("onclick","cancelEntryEdit()");
+      erow.appendChild(ni); erow.appendChild(ki); erow.appendChild(sv); erow.appendChild(cn);
+      list.appendChild(erow); return;
+    }
+    var row=el("div","entry tap "+r.kind); row.setAttribute("onclick","editEntry('"+k+"','"+r.kind+"','"+r.id+"')");
     row.appendChild(el("span","entry-name",r.name||(r.kind==="food"?"먹은 것":"운동")));
     row.appendChild(el("span","entry-kcal",(r.kind==="food"?"−":"+")+fmt(r.kcal)));
-    var del=el("button","entry-del","✕"); del.setAttribute("aria-label","삭제"); del.setAttribute("onclick","delEntry('"+k+"','"+r.kind+"','"+r.id+"')");
+    var del=el("button","entry-del","✕"); del.setAttribute("aria-label","삭제"); del.setAttribute("onclick","event.stopPropagation();delEntry('"+k+"','"+r.kind+"','"+r.id+"')");
     row.appendChild(del); list.appendChild(row);
   });
 }
@@ -652,6 +720,14 @@ function balanceIfFood(k,addKcal){
     if(key===k) n-=addKcal;
     return a+n;
   },0);
+}
+function editEntry(date,kind,id){ _editEntry={date:date,kind:kind,id:id}; render(); }
+function cancelEntryEdit(){ _editEntry=null; render(); }
+function saveEntryEdit(){
+  var e=_editEntry; if(!e){ render(); return; }
+  var d=state.days[e.date]; if(d){ var arr=e.kind==="food"?d.food:d.exercise; var it=arr.find(function(x){return x.id===e.id;});
+    if(it){ it.name=$("#ee-name").value.trim(); var kc=Math.round(Number($("#ee-kcal").value)); if(kc>0) it.kcal=kc; } }
+  _editEntry=null; save(); render(); toast("수정했어요");
 }
 function commitEntry(kind){
   var nameEl=kind==="food"?$("#food-name"):$("#ex-name"), kcalEl=kind==="food"?$("#food-kcal"):$("#ex-kcal");
@@ -747,6 +823,14 @@ function buildTxns(){
     day.concat(ent).forEach(function(tx){ run+=tx.amt; out.push({date:k,memo:tx.memo,amt:tx.amt,bal:run,budget:!!tx.budget}); });
   });
   return out;
+}
+function computeCredit(){
+  var txns=buildTxns(), prev=0, loans=0, repays=0;
+  txns.forEach(function(x){ if(prev>=0 && x.bal<0) loans++; if(prev<0 && x.bal>=0) repays++; prev=x.bal; });
+  var bal=prev, g=state.goal||2000;
+  // 현재 갚아야 할 빚(마이너스 잔고)만 등급에 영향. 다 갚으면 1등급으로 완전 회복
+  var grade = bal>=0 ? 1 : Math.max(2, Math.min(5, 2 + Math.floor((-bal)/g)));
+  return {loans:loans, repays:repays, grade:grade, inLoan:bal<0};
 }
 function renderPassbook(){
   var t=totals();
@@ -896,14 +980,39 @@ function runCalc(){
   var m=calcMaintenance(p); state.profile=p; save();
   $("#calc-result").innerHTML='유지 칼로리 <b>'+fmt(m)+'</b> kcal · <button type="button" class="link" onclick="useMaint('+m+')">이걸로 설정</button>';
 }
-function useMaint(v){ state.goal=Math.round(v); $("#goal-input").value=v; save(); closeGoal(); toast("목표를 "+fmt(v)+"kcal로 설정했어요"); }
+function useMaint(v){ v=Math.round(v); state.goal=v; ensureDay(todayKey()).goal=v; $("#goal-input").value=v; save(); closeGoal(); toast("목표를 "+fmt(v)+"kcal로 설정했어요"); }
 function saveGoal(){
   var g=Math.round(Number($("#goal-input").value)); if(!g||g<=0){ $("#goal-input").focus(); return; }
   state.goal=g; var k=todayKey();
-  if(state.days[k]&&!state.days[k].food.length&&!state.days[k].exercise.length) state.days[k].goal=g;
+  ensureDay(k).goal=g;
   var a=+$("#calc-age").value, h=+$("#calc-height").value, w=+$("#calc-weight").value;
   if(a&&h&&w){ state.profile={sex:$("#calc-sex").value,age:a,height:h,weight:w,activity:+$("#calc-activity").value}; }
   save(); toast("목표를 저장했어요"); closeGoal();
+}
+function backupData(){
+  try{
+    var blob=new Blob([JSON.stringify(state)],{type:"application/json"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a"); a.href=url; a.download="dabbaettung-backup-"+todayKey()+".json";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); },1000);
+    toast("백업 파일을 저장했어요");
+  }catch(e){ toast("백업에 실패했어요"); }
+}
+function importData(input){
+  var f=input.files&&input.files[0]; if(!f){ return; }
+  var rd=new FileReader();
+  rd.onload=function(){
+    var ok=false, obj=null;
+    try{ obj=JSON.parse(rd.result); ok=obj&&typeof obj==="object"&&obj.days&&typeof obj.days==="object"; }catch(e){}
+    input.value="";
+    if(!ok){ toast("올바른 백업 파일이 아니에요"); return; }
+    confirmSheet("불러올까요?","지금 데이터를 백업 파일 내용으로 덮어써요. 되돌릴 수 없어요.","불러오기",function(){
+      state=Object.assign(defaultState(),obj); if(!Array.isArray(state.favs)) state.favs=[];
+      _editEntry=null; save(); render(); toast("불러왔어요");
+    });
+  };
+  rd.readAsText(f);
 }
 function resetAll(){
   confirmSheet("전체 초기화","모든 기록과 텅장 잔고가 지워져요. 되돌릴 수 없어요.","초기화",function(){ state=defaultState(); save(); render(); toast("초기화했어요"); });

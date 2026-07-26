@@ -235,6 +235,9 @@ input,select{-webkit-user-select:text;user-select:text;}
   background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13px;
   padding:10px;border-radius:10px;cursor:pointer;}
 .fav-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.fav-add-btn{display:block;width:100%;border:1px dashed var(--sky);background:var(--sky-soft);color:var(--sky-deep);
+  font-family:inherit;font-weight:700;font-size:13px;padding:10px;border-radius:12px;cursor:pointer;margin-bottom:12px;}
+.fav-add-btn:active{transform:scale(.99);}
 .fav-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#f7fafd;
   border-radius:999px;padding:7px 12px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--ink);}
 .fav-chip:active{transform:scale(.97);}
@@ -396,6 +399,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       </div>
       <button id="fast-btn" class="fast-btn" onclick="toggleFast()">🚫 이 날 안 먹음</button>
       <div id="fav-chips" class="fav-chips" hidden></div>
+      <button id="fav-add-btn" class="fav-add-btn" onclick="goToFavAdd()">＋ 즐겨찾기 등록</button>
       <div class="adders">
         <div class="adder">
           <input id="food-name" class="in-name" type="text" placeholder="먹은 것 (예: 점심)" />
@@ -631,6 +635,10 @@ function closeIf(ev,id){ if(ev.target.id===id) document.getElementById(id).hidde
 /* ---- root ---- */
 function go(tab){ activeTab=tab; render(); }
 function subGo(s){ ledgerSub=s; render(); }
+function goToFavAdd(){
+  go("settings");
+  setTimeout(function(){ var e=$("#fav-name"); if(e){ try{ e.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} e.focus(); } }, 60);
+}
 function calMove(d){ calMonth+=d; if(calMonth<0){calMonth=11;calYear--;} if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
 
 function render(){

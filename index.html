@@ -137,6 +137,29 @@ input,select{-webkit-user-select:text;user-select:text;}
 .chip small{display:block;font-size:10px;opacity:.9;}
 .chip span{display:block;font-family:var(--mono);font-weight:700;font-size:14px;margin-top:2px;font-variant-numeric:tabular-nums;}
 .led-head{display:grid;grid-template-columns:52px 1fr 72px 70px;gap:6px;padding:14px 6px 6px;font-size:11px;color:var(--ink-soft);}
+/* ---------- ledger filter ---------- */
+.flt-bar{margin-top:8px;padding:12px 4px 4px;}
+.flt-line1{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.flt-range{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);}
+.flt-chip{border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;
+  font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
+.flt-line2{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;font-size:12px;color:var(--ink-soft);}
+.tgl{position:relative;width:42px;height:24px;border:none;border-radius:999px;background:#cbd5e1;cursor:pointer;padding:0;transition:background .15s;}
+.tgl.on{background:var(--sky);}
+.tgl .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;}
+.tgl.on .knob{left:21px;}
+.ledger.no-bal .led-row{grid-template-columns:52px 1fr 1fr;}
+.led-head.no-bal{grid-template-columns:52px 1fr 1fr;}
+.led-head.no-bal span:nth-child(4){display:none;}
+.flt-title{font-size:12px;font-weight:800;color:var(--ink-soft);margin:6px 0 8px;}
+.flt-opts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.flt-opts.three .flt-opt{flex:1;}
+.flt-opt{border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;
+  font-weight:700;font-size:13px;padding:10px 14px;border-radius:10px;cursor:pointer;}
+.flt-opt.on{border-color:var(--sky);background:var(--sky-soft);color:var(--sky-deep);}
+.flt-actions{display:flex;gap:8px;margin-top:4px;}
+.flt-actions .btn{flex:1;}
+.flt-actions .btn.ghost{flex:0 0 34%;}
 .led-head span:nth-child(3),.led-head span:nth-child(4){text-align:right;}
 .ledger{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;}
 .led-row{display:grid;grid-template-columns:52px 1fr 72px 70px;gap:6px;align-items:center;padding:12px;border-bottom:1px solid var(--line);cursor:pointer;}
@@ -380,7 +403,17 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
           <div class="chip ex"><small>운동으로 번</small><span id="pb-earned">+0</span></div>
         </div>
       </div>
-      <div class="led-head"><span>날짜</span><span>내용</span><span>입출금</span><span>잔고</span></div>
+      <div class="flt-bar">
+        <div class="flt-line1">
+          <span id="flt-range" class="flt-range">전체 기간</span>
+          <button class="flt-chip" onclick="openFilter()"><span id="flt-summary">전체 · 전체 · 최신순</span> ⚙</button>
+        </div>
+        <div class="flt-line2">
+          <span>잔액 표시</span>
+          <button id="bal-toggle" class="tgl on" onclick="toggleBal()" aria-label="잔액 표시"><span class="knob"></span></button>
+        </div>
+      </div>
+      <div id="led-head" class="led-head"><span>날짜</span><span>내용</span><span>입출금</span><span>잔고</span></div>
       <div id="ledger" class="ledger"></div>
     </div>
   </section>
@@ -428,6 +461,31 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
     <button id="btn-ledger" class="tab-item" onclick="go('ledger')"><span class="ti">🏦</span><span>입출금 관리</span></button>
     <button id="btn-settings" class="tab-item" onclick="go('settings')"><span class="ti">⚙️</span><span>설정</span></button>
   </nav>
+</div>
+
+<!-- filter modal -->
+<div id="filter-modal" class="modal" hidden onclick="closeIf(event,'filter-modal')">
+  <div class="sheet">
+    <div class="sheet-head"><h2>조회 조건</h2><button class="sheet-close" aria-label="닫기" onclick="closeFilter()">✕</button></div>
+    <div class="flt-title">조회기간</div>
+    <div class="flt-opts">
+      <button id="flt-p-month" class="flt-opt" onclick="filterPick('p','month')">이번달</button>
+      <button id="flt-p-3m" class="flt-opt" onclick="filterPick('p','3m')">3개월</button>
+      <button id="flt-p-6m" class="flt-opt" onclick="filterPick('p','6m')">6개월</button>
+      <button id="flt-p-1y" class="flt-opt" onclick="filterPick('p','1y')">1년</button>
+      <button id="flt-p-all" class="flt-opt" onclick="filterPick('p','all')">전체</button>
+    </div>
+    <div class="flt-title">거래구분</div>
+    <div class="flt-opts three">
+      <button id="flt-t-all" class="flt-opt" onclick="filterPick('t','all')">전체</button>
+      <button id="flt-t-in" class="flt-opt" onclick="filterPick('t','in')">입금</button>
+      <button id="flt-t-out" class="flt-opt" onclick="filterPick('t','out')">출금</button>
+    </div>
+    <div class="flt-actions">
+      <button class="btn ghost" onclick="resetFilter()">초기화</button>
+      <button class="btn primary" onclick="applyFilter()">적용하기</button>
+    </div>
+  </div>
 </div>
 
 <!-- goal modal -->
@@ -482,6 +540,7 @@ var _now = new Date(), calYear = _now.getFullYear(), calMonth = _now.getMonth();
 var selectedDate = null, activeTab = "home", ledgerSub = "stack", inputOpen = false, _confirmAction = null, _toastTimer = null;
 var profileShown = false;
 var _editFav = null;
+var _fltPeriod="all", _fltType="all", _showBal=true, _tmpP="all", _tmpT="all";
 
 function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); var s=Object.assign(defaultState(),JSON.parse(raw)); if(!Array.isArray(s.favs))s.favs=[]; return s; }catch(e){ return defaultState(); } }
 function save(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(state)); }catch(e){} }
@@ -666,36 +725,75 @@ function renderStack(){
     wrap.appendChild(pill);
   });
 }
+function periodStartKey(p){
+  var n=new Date(), y=n.getFullYear(), m=n.getMonth(), d=n.getDate();
+  if(p==="month") return keyOf(new Date(y,m,1));
+  if(p==="3m") return keyOf(new Date(y,m-3,d));
+  if(p==="6m") return keyOf(new Date(y,m-6,d));
+  if(p==="1y") return keyOf(new Date(y-1,m,d));
+  return null;
+}
+function pLabel(p){ return {month:"이번달","3m":"3개월","6m":"6개월","1y":"1년",all:"전체 기간"}[p]||"전체 기간"; }
+function tLabel(t){ return {all:"전체",in:"입금",out:"출금"}[t]||"전체"; }
+function dotK(k){ return k.replace(/-/g,"."); }
+function buildTxns(){
+  var run=0, out=[];
+  activeKeys().forEach(function(k){
+    var d=state.days[k], g=(d.goal||state.goal);
+    var day=[{memo:(d.fasted&&!d.food.length)?"예산 입금 (단식)":"예산 입금", amt:g, budget:true}];
+    var ent=d.food.map(function(e){return {memo:e.name||"먹은 것",amt:-e.kcal,id:e.id};})
+      .concat(d.exercise.map(function(e){return {memo:e.name||"운동",amt:e.kcal,id:e.id};}));
+    ent.sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;});
+    day.concat(ent).forEach(function(tx){ run+=tx.amt; out.push({date:k,memo:tx.memo,amt:tx.amt,bal:run,budget:!!tx.budget}); });
+  });
+  return out;
+}
 function renderPassbook(){
   var t=totals();
   $("#pb-balance").textContent=signed(t.balance); $("#pb-balance").className="pb-balance "+(t.balance<0?"neg":"");
   $("#pb-bal-label").textContent=t.balance<0?"대출 잔액":"누적 잔고";
   $("#pb-saved").textContent="+"+fmt(t.saved); $("#pb-over").textContent="−"+fmt(t.over); $("#pb-earned").textContent="+"+fmt(t.earned);
-  var led=$("#ledger"); led.innerHTML="";
-  var keys=activeKeys();
-  if(!keys.length){ led.appendChild(el("p","empty","거래 내역이 아직 없어요.")); return; }
-  var run=0, frag=document.createDocumentFragment();
-  keys.forEach(function(k){
-    var d=state.days[k], g=(d.goal||state.goal);
-    // 하루 거래 목록: 예산 입금 먼저, 그다음 먹음/운동을 기록순으로
-    var txns=[{memo:(d.fasted&&!d.food.length)?"예산 입금 (단식)":"예산 입금", amt:g, budget:true}];
-    var ent=d.food.map(function(e){return {memo:e.name||"먹은 것",amt:-e.kcal,id:e.id};})
-      .concat(d.exercise.map(function(e){return {memo:e.name||"운동",amt:e.kcal,id:e.id};}));
-    ent.sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;});
-    txns=txns.concat(ent);
-    txns.forEach(function(tx,idx){
-      run+=tx.amt;
-      var row=el("div","led-row"+(tx.budget?" budget":" sub")); row.setAttribute("onclick","selectDate('"+k+"')");
-      var dc=el("div","led-date"); if(idx===0){ dc.innerHTML=shortDate(k)+"<span>"+weekdayKr(k)+"</span>"; }
+  var startKey=periodStartKey(_fltPeriod);
+  $("#flt-summary").textContent=pLabel(_fltPeriod).replace(" 기간","")+" · "+tLabel(_fltType)+" · 최신순";
+  $("#flt-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(todayKey())):"전체 기간";
+  $("#bal-toggle").className="tgl"+(_showBal?" on":"");
+  var led=$("#ledger"); led.className="ledger"+(_showBal?"":" no-bal");
+  var lh=$("#led-head"); if(lh) lh.className="led-head"+(_showBal?"":" no-bal");
+  led.innerHTML="";
+  var all=buildTxns().filter(function(x){
+    if(startKey && x.date<startKey) return false;
+    if(_fltType==="in" && x.amt<0) return false;
+    if(_fltType==="out" && x.amt>=0) return false;
+    return true;
+  });
+  if(!all.length){ led.appendChild(el("p","empty","조건에 맞는 내역이 없어요.")); return; }
+  var byDate={}, dates=[];
+  all.forEach(function(x){ if(!byDate[x.date]){byDate[x.date]=[];dates.push(x.date);} byDate[x.date].push(x); });
+  dates.sort().reverse();
+  var frag=document.createDocumentFragment();
+  dates.forEach(function(dk){
+    byDate[dk].forEach(function(x,idx){
+      var row=el("div","led-row"+(x.budget?" budget":" sub")); row.setAttribute("onclick","selectDate('"+dk+"')");
+      var dc=el("div","led-date"); if(idx===0){ dc.innerHTML=shortDate(dk)+"<span>"+weekdayKr(dk)+"</span>"; }
       row.appendChild(dc);
-      row.appendChild(el("div","led-memo",tx.memo));
-      row.appendChild(el("div","led-amt "+(tx.amt<0?"out":"in"),signed(tx.amt)));
-      row.appendChild(el("div","led-run"+(run<0?" neg":""),fmt(run)));
+      row.appendChild(el("div","led-memo",x.memo));
+      row.appendChild(el("div","led-amt "+(x.amt<0?"out":"in"),signed(x.amt)));
+      if(_showBal) row.appendChild(el("div","led-run"+(x.bal<0?" neg":""),fmt(x.bal)));
       frag.appendChild(row);
     });
   });
   led.appendChild(frag);
 }
+function openFilter(){ _tmpP=_fltPeriod; _tmpT=_fltType; renderFilterSheet(); $("#filter-modal").hidden=false; }
+function closeFilter(){ $("#filter-modal").hidden=true; }
+function filterPick(kind,val){ if(kind==="p")_tmpP=val; else _tmpT=val; renderFilterSheet(); }
+function renderFilterSheet(){
+  ["month","3m","6m","1y","all"].forEach(function(p){ var e=$("#flt-p-"+p); if(e)e.className="flt-opt"+(_tmpP===p?" on":""); });
+  ["all","in","out"].forEach(function(tt){ var e=$("#flt-t-"+tt); if(e)e.className="flt-opt"+(_tmpT===tt?" on":""); });
+}
+function applyFilter(){ _fltPeriod=_tmpP; _fltType=_tmpT; closeFilter(); render(); }
+function resetFilter(){ _tmpP="all"; _tmpT="all"; renderFilterSheet(); }
+function toggleBal(){ _showBal=!_showBal; render(); }
 
 /* ---- SETTINGS ---- */
 function renderSettings(){

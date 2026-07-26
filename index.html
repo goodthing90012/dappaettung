@@ -154,6 +154,36 @@ input,select{-webkit-user-select:text;user-select:text;}
 .set-v{font-size:12px;color:var(--ink-soft);margin-top:3px;}
 .set-arrow{color:var(--ink-soft);font-size:18px;}
 .set-row.danger .set-k{color:var(--minus);}
+/* ---------- favorites & profile ---------- */
+.set-head{padding:14px 16px 8px;font-size:12px;font-weight:800;color:var(--ink-soft);}
+.eye-btn{border:1px solid var(--line);background:#fff;color:var(--sky-deep);font-family:inherit;
+  font-weight:700;font-size:12px;padding:6px 12px;border-radius:999px;cursor:pointer;flex-shrink:0;}
+.fav-add{display:flex;gap:6px;padding:0 12px 12px;align-items:center;}
+.fav-kind{border:1px solid var(--line);border-radius:10px;padding:10px 6px;font-family:inherit;
+  font-size:13px;background:#f7fafd;color:var(--ink);flex-shrink:0;}
+.fav-add .in-name{flex:1;min-width:0;}
+.fav-add .in-kcal{width:64px;}
+.fav-add .btn{padding:10px 12px;font-size:13px;}
+.fav-list{border-top:1px solid var(--line);}
+.fav-list .empty{padding:16px;}
+.fav-row{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line);}
+.fav-row:last-child{border-bottom:none;}
+.fav-tag{font-size:10px;font-weight:700;padding:3px 8px;border-radius:999px;flex-shrink:0;}
+.fav-tag.food{background:#fdecec;color:var(--minus);}
+.fav-tag.ex{background:#e3f7f4;color:var(--ex);}
+.fav-name{flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fav-kcal{font-family:var(--mono);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;}
+.fav-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.fav-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#f7fafd;
+  border-radius:999px;padding:7px 12px;font-family:inherit;font-size:13px;cursor:pointer;color:var(--ink);}
+.fav-chip:active{transform:scale(.97);}
+.fav-chip.food{border-color:#f6cfcf;}
+.fav-chip.ex{border-color:#bfe8e2;}
+.fc-name{font-weight:600;}
+.fc-kcal{font-family:var(--mono);font-size:12px;font-weight:700;}
+.fav-chip.food .fc-kcal{color:var(--minus);}
+.fav-chip.ex .fc-kcal{color:var(--ex);}
+
 .set-about{text-align:center;font-size:11px;color:var(--ink-soft);line-height:1.6;margin-top:6px;}
 
 /* ---------- shared empty ---------- */
@@ -288,6 +318,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <span id="in-left" class="day-num">0</span>
         <span id="in-sub" class="day-sub">목표 0 · 먹음 0 · 운동 0</span>
       </div>
+      <div id="fav-chips" class="fav-chips" hidden></div>
       <div class="adders">
         <div class="adder">
           <input id="food-name" class="in-name" type="text" placeholder="먹은 것 (예: 점심)" />
@@ -347,7 +378,22 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       </div>
       <div class="set-row static">
         <div><div class="set-k">내 프로필</div><div class="set-v" id="set-profile">미설정</div></div>
+        <button id="profile-eye" class="eye-btn" onclick="toggleProfile()">보기</button>
       </div>
+    </div>
+
+    <div class="set-group">
+      <div class="set-head">즐겨찾기</div>
+      <div class="fav-add">
+        <select id="fav-kind" class="fav-kind">
+          <option value="food">먹음</option>
+          <option value="exercise">운동</option>
+        </select>
+        <input id="fav-name" class="in-name" type="text" placeholder="이름 (예: 아메리카노)" />
+        <input id="fav-kcal" class="in-kcal" type="number" inputmode="numeric" placeholder="kcal" onkeydown="if(event.key==='Enter')addFav()" />
+        <button class="btn primary" onclick="addFav()">등록</button>
+      </div>
+      <div id="fav-list" class="fav-list"></div>
     </div>
     <div class="set-group">
       <div class="set-row danger" id="reset-all" onclick="resetAll()">
@@ -413,12 +459,13 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
 
 var STORE_KEY = "dameoktung.v1", DEFAULT_GOAL = 2000;
 var STEP_KCAL = 0.04; // 대략 1걸음당 소모 칼로리 (약 1,000걸음 ≈ 40kcal)
-function defaultState(){ return { goal:DEFAULT_GOAL, profile:null, days:{} }; }
+function defaultState(){ return { goal:DEFAULT_GOAL, profile:null, days:{}, favs:[] }; }
 var state = load();
 var _now = new Date(), calYear = _now.getFullYear(), calMonth = _now.getMonth();
 var selectedDate = null, activeTab = "home", ledgerSub = "stack", inputOpen = false, _confirmAction = null, _toastTimer = null;
+var profileShown = false;
 
-function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); return Object.assign(defaultState(),JSON.parse(raw)); }catch(e){ return defaultState(); } }
+function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); var s=Object.assign(defaultState(),JSON.parse(raw)); if(!Array.isArray(s.favs))s.favs=[]; return s; }catch(e){ return defaultState(); } }
 function save(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(state)); }catch(e){} }
 
 function keyOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -496,6 +543,7 @@ function renderInput(){
   $("#input-toggle").textContent = inputOpen ? "▴ 접기" : ("＋ "+(_k0===todayKey()?"오늘":shortDate(_k0))+" 기록하기");
   $("#input-body").hidden = !inputOpen;
   if(!inputOpen) return;
+  renderFavChips();
   var k=selectedDate||todayKey(); selectedDate=k; var d=ensureDay(k);
   $("#in-date").textContent=shortDate(k)+" ("+weekdayKr(k)+")"+(k===todayKey()?" · 오늘":"");
   var consumed=sum(d.food), burned=sum(d.exercise), allowance=(d.goal||state.goal)+burned, left=allowance-consumed;
@@ -517,6 +565,15 @@ function delEntry(k,kind,id){
   var i=arr.findIndex(function(x){return x.id===id;}); if(i>-1)arr.splice(i,1);
   save(); render();
 }
+function balanceIfFood(k,addKcal){
+  var keys=activeKeys();
+  if(keys.indexOf(k)===-1) keys=keys.concat([k]); // 먹는 순간 그날도 계산에 포함
+  return keys.reduce(function(a,key){
+    var n=dayNet(ensureDay(key));
+    if(key===k) n-=addKcal;
+    return a+n;
+  },0);
+}
 function commitEntry(kind){
   var nameEl=kind==="food"?$("#food-name"):$("#ex-name"), kcalEl=kind==="food"?$("#food-kcal"):$("#ex-kcal");
   var name=nameEl.value.trim(), kcal=Math.round(Number(kcalEl.value));
@@ -524,8 +581,8 @@ function commitEntry(kind){
   var k=selectedDate||todayKey(), d=ensureDay(k);
   function doAdd(){ (kind==="food"?d.food:d.exercise).push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:name,kcal:kcal}); save(); nameEl.value=""; kcalEl.value=""; render(); }
   if(kind==="food"){
-    var projected=balance()-kcal;
-    if(projected<0 && balance()>=0){ confirmSheet("대출할까요?","이거 먹으면 대출이에요. 모아둔 칼로리를 넘어서 "+fmt(-projected)+"kcal를 미리 당겨쓰게 돼요.","그래도 당기기",doAdd); return; }
+    var projected=balanceIfFood(k,kcal);
+    if(projected < 0){ confirmSheet("대출할까요?","이거 먹으면 텅장 잔고를 넘어서 "+fmt(-projected)+"kcal를 미리 당겨쓰게 돼요.","그래도 당기기",doAdd); return; }
   }
   doAdd();
 }
@@ -608,26 +665,91 @@ function renderPassbook(){
 function renderSettings(){
   $("#set-goal").textContent=fmt(state.goal)+" kcal";
   var p=state.profile;
-  $("#set-profile").textContent=p?((p.sex==="female"?"여성":"남성")+" · "+p.age+"세 · "+p.height+"cm · "+p.weight+"kg"):"미설정";
+  if(!p){ $("#set-profile").textContent="미설정"; $("#profile-eye").textContent=""; }
+  else if(profileShown){
+    $("#set-profile").textContent=(p.sex==="female"?"여성":"남성")+" · "+p.age+"세 · "+p.height+"cm · "+p.weight+"kg";
+    $("#profile-eye").textContent="숨기기";
+  } else {
+    $("#set-profile").textContent="••••••••";
+    $("#profile-eye").textContent="보기";
+  }
+  renderFavSettings();
+}
+function toggleProfile(){ profileShown=!profileShown; renderSettings(); }
+
+/* ---- 즐겨찾기 ---- */
+function addFav(){
+  var n=$("#fav-name").value.trim(), k=Math.round(Number($("#fav-kcal").value)), t=$("#fav-kind").value;
+  if(!n){ $("#fav-name").focus(); return; }
+  if(!k||k<=0){ $("#fav-kcal").focus(); return; }
+  state.favs.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:n,kcal:k,kind:t});
+  save(); $("#fav-name").value=""; $("#fav-kcal").value="";
+  renderSettings(); toast("즐겨찾기에 추가했어요");
+}
+function delFav(id){
+  var i=state.favs.findIndex(function(f){return f.id===id;});
+  if(i>-1) state.favs.splice(i,1);
+  save(); render();
+}
+function renderFavSettings(){
+  var wrap=$("#fav-list"); wrap.innerHTML="";
+  if(!state.favs.length){ wrap.appendChild(el("p","empty","등록한 즐겨찾기가 없어요.")); return; }
+  state.favs.forEach(function(f){
+    var row=el("div","fav-row");
+    row.appendChild(el("span","fav-tag "+(f.kind==="food"?"food":"ex"), f.kind==="food"?"먹음":"운동"));
+    row.appendChild(el("span","fav-name",f.name));
+    row.appendChild(el("span","fav-kcal",(f.kind==="food"?"−":"+")+fmt(f.kcal)));
+    var del=el("button","entry-del","✕"); del.setAttribute("aria-label","삭제"); del.setAttribute("onclick","delFav('"+f.id+"')");
+    row.appendChild(del); wrap.appendChild(row);
+  });
+}
+function renderFavChips(){
+  var wrap=$("#fav-chips"); if(!wrap) return;
+  wrap.innerHTML="";
+  if(!state.favs.length){ wrap.hidden=true; return; }
+  wrap.hidden=false;
+  state.favs.forEach(function(f){
+    var c=el("button","fav-chip "+(f.kind==="food"?"food":"ex"));
+    c.setAttribute("onclick","useFav('"+f.id+"')");
+    c.appendChild(el("span","fc-name",f.name));
+    c.appendChild(el("span","fc-kcal",(f.kind==="food"?"−":"+")+fmt(f.kcal)));
+    wrap.appendChild(c);
+  });
+}
+function useFav(id){
+  var f=state.favs.find(function(x){return x.id===id;});
+  if(!f) return;
+  var k=selectedDate||todayKey(), d=ensureDay(k);
+  function doAdd(){
+    (f.kind==="food"?d.food:d.exercise).push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:f.name,kcal:f.kcal});
+    save(); render(); toast(f.name+" 기록했어요");
+  }
+  if(f.kind==="food"){
+    var projected=balanceIfFood(k,f.kcal);
+    if(projected < 0){ confirmSheet("대출할까요?","이거 먹으면 텅장 잔고를 넘어서 "+fmt(-projected)+"kcal를 미리 당겨쓰게 돼요.","그래도 당기기",doAdd); return; }
+  }
+  doAdd();
 }
 function openGoal(){
   $("#goal-input").value=state.goal; var p=state.profile||{};
   $("#calc-sex").value=p.sex||"male"; $("#calc-age").value=p.age||""; $("#calc-height").value=p.height||""; $("#calc-weight").value=p.weight||""; $("#calc-activity").value=p.activity||"1.375";
   $("#calc-result").textContent=""; $("#goal-modal").hidden=false;
 }
-function closeGoal(){ $("#goal-modal").hidden=true; }
+function closeGoal(){ $("#goal-modal").hidden=true; render(); }
 function runCalc(){
   var p={sex:$("#calc-sex").value,age:+$("#calc-age").value,height:+$("#calc-height").value,weight:+$("#calc-weight").value,activity:+$("#calc-activity").value};
   if(!p.age||!p.height||!p.weight){ $("#calc-result").textContent="나이·키·몸무게를 채워주세요."; return; }
-  var m=calcMaintenance(p); state.profile=p;
+  var m=calcMaintenance(p); state.profile=p; save();
   $("#calc-result").innerHTML='유지 칼로리 <b>'+fmt(m)+'</b> kcal · <button type="button" class="link" onclick="useMaint('+m+')">이걸로 설정</button>';
 }
-function useMaint(v){ $("#goal-input").value=v; }
+function useMaint(v){ state.goal=Math.round(v); $("#goal-input").value=v; save(); closeGoal(); toast("목표를 "+fmt(v)+"kcal로 설정했어요"); }
 function saveGoal(){
   var g=Math.round(Number($("#goal-input").value)); if(!g||g<=0){ $("#goal-input").focus(); return; }
   state.goal=g; var k=todayKey();
   if(state.days[k]&&!state.days[k].food.length&&!state.days[k].exercise.length) state.days[k].goal=g;
-  save(); closeGoal(); render(); toast("목표를 저장했어요");
+  var a=+$("#calc-age").value, h=+$("#calc-height").value, w=+$("#calc-weight").value;
+  if(a&&h&&w){ state.profile={sex:$("#calc-sex").value,age:a,height:h,weight:w,activity:+$("#calc-activity").value}; }
+  save(); toast("목표를 저장했어요"); closeGoal();
 }
 function resetAll(){
   confirmSheet("전체 초기화","모든 기록과 텅장 잔고가 지워져요. 되돌릴 수 없어요.","초기화",function(){ state=defaultState(); save(); render(); toast("초기화했어요"); });

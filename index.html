@@ -148,6 +148,11 @@ input,select{-webkit-user-select:text;user-select:text;}
 .led-amt.in{color:var(--sky-deep);}.led-amt.out{color:var(--minus);}
 .led-run{font-family:var(--mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums;}
 .led-run.neg{color:var(--amber);}
+.led-row.budget{border-top:2px solid var(--line);}
+.led-row.budget:first-child{border-top:none;}
+.led-row.budget .led-memo{color:var(--sky-deep);font-weight:700;}
+.led-row.sub .led-memo{padding-left:8px;}
+.led-row.sub{border-bottom:1px solid var(--line);}
 
 /* ---------- settings ---------- */
 .set-group{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:14px;}
@@ -671,15 +676,23 @@ function renderPassbook(){
   if(!keys.length){ led.appendChild(el("p","empty","거래 내역이 아직 없어요.")); return; }
   var run=0, frag=document.createDocumentFragment();
   keys.forEach(function(k){
-    var d=state.days[k], net=dayNet(d); run+=net;
-    var row=el("div","led-row"); row.setAttribute("onclick","selectDate('"+k+"')");
-    var dc=el("div","led-date"); dc.innerHTML=shortDate(k)+"<span>"+weekdayKr(k)+"</span>";
-    var memo=el("div","led-memo"); var bits=[], c=sum(d.food), b=sum(d.exercise);
-    if(c)bits.push("먹음 "+fmt(c)); if(b)bits.push("운동 +"+fmt(b)); if(d.fasted&&!c)bits.unshift("단식(안 먹음)"); memo.textContent=bits.join(" · ")||"—";
-    row.appendChild(dc); row.appendChild(memo);
-    row.appendChild(el("div","led-amt "+(net<0?"out":"in"),signed(net)));
-    row.appendChild(el("div","led-run"+(run<0?" neg":""),fmt(run)));
-    frag.appendChild(row);
+    var d=state.days[k], g=(d.goal||state.goal);
+    // 하루 거래 목록: 예산 입금 먼저, 그다음 먹음/운동을 기록순으로
+    var txns=[{memo:(d.fasted&&!d.food.length)?"예산 입금 (단식)":"예산 입금", amt:g, budget:true}];
+    var ent=d.food.map(function(e){return {memo:e.name||"먹은 것",amt:-e.kcal,id:e.id};})
+      .concat(d.exercise.map(function(e){return {memo:e.name||"운동",amt:e.kcal,id:e.id};}));
+    ent.sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;});
+    txns=txns.concat(ent);
+    txns.forEach(function(tx,idx){
+      run+=tx.amt;
+      var row=el("div","led-row"+(tx.budget?" budget":" sub")); row.setAttribute("onclick","selectDate('"+k+"')");
+      var dc=el("div","led-date"); if(idx===0){ dc.innerHTML=shortDate(k)+"<span>"+weekdayKr(k)+"</span>"; }
+      row.appendChild(dc);
+      row.appendChild(el("div","led-memo",tx.memo));
+      row.appendChild(el("div","led-amt "+(tx.amt<0?"out":"in"),signed(tx.amt)));
+      row.appendChild(el("div","led-run"+(run<0?" neg":""),fmt(run)));
+      frag.appendChild(row);
+    });
   });
   led.appendChild(frag);
 }

@@ -1050,8 +1050,11 @@ function renderInput(){
 }
 function delEntry(k,kind,id){
   var d=state.days[k]; if(!d)return; var arr=kind==="food"?d.food:d.exercise;
-  var i=arr.findIndex(function(x){return x.id===id;}); if(i>-1)arr.splice(i,1);
-  save(); render();
+  var it=arr.find(function(x){return x.id===id;}); if(!it)return;
+  confirmSheet("삭제할까요?", (it.name?("'"+it.name+"' "):"")+"기록을 삭제해요.", "삭제", function(){
+    var i=arr.findIndex(function(x){return x.id===id;}); if(i>-1)arr.splice(i,1);
+    save(); render(); toast("삭제했어요");
+  });
 }
 function balanceIfFood(k,addKcal){
   var keys=activeKeys();

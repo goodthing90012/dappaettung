@@ -86,6 +86,12 @@ input,select{-webkit-user-select:text;user-select:text;}
 .prod-title{margin:0 0 6px;font-size:18px;font-weight:800;color:var(--ink);}
 .prod-desc{margin:0 0 14px;font-size:13px;line-height:1.6;color:var(--ink-soft);}
 .dep-list{display:flex;flex-direction:column;gap:12px;}
+.prod-filter{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:2px 0 12px;-webkit-overflow-scrolling:touch;}
+.prod-filter::-webkit-scrollbar{display:none;}
+.pchip{flex-shrink:0;border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13px;padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;}
+.pchip.on{background:var(--sky);border-color:var(--sky);color:#fff;}
+.pf-div{flex-shrink:0;width:1px;height:20px;background:var(--line);margin:0;}
+
 .dep-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;}
 .dep-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
 .dep-name{font-size:15px;font-weight:800;color:var(--ink);flex:1;}
@@ -568,9 +574,17 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
   <!-- ===== 설정 ===== -->
   <section id="tab-products" class="content" hidden>
     <div class="prod-intro">
-      <h2 class="prod-title">칼로리 적금</h2>
-      <p class="prod-desc">아낀 칼로리를 적금통에 묶어두면 만기에 이자를 붙여 돌려줘요. 그만큼 나중에 더 먹을 수 있어요. 기간과 이자율은 직접 정해요.</p>
+      <h2 class="prod-title">칼로리 예·적금</h2>
+      <p class="prod-desc">아낀 칼로리를 묶어두면 만기에 이자를 붙여 돌려줘요. 그만큼 나중에 더 먹을 수 있어요. 만기일과 이자율은 직접 정해요.</p>
       <button class="btn primary wide" onclick="openNewDep()">＋ 상품 만들기</button>
+    </div>
+    <div class="prod-filter">
+      <button id="pc-all" class="pchip on" onclick="prodCat('all')">전체</button>
+      <button id="pc-regular" class="pchip" onclick="prodCat('regular')">정기적금</button>
+      <button id="pc-free" class="pchip" onclick="prodCat('free')">자유적금</button>
+      <button id="pc-deposit" class="pchip" onclick="prodCat('deposit')">예금</button>
+      <button id="ps-active" class="pchip" onclick="prodStat('active')">진행 중</button>
+      <button id="ps-matured" class="pchip" onclick="prodStat('matured')">수령 대기</button>
     </div>
     <div id="dep-list" class="dep-list"></div>
   </section>
@@ -778,6 +792,9 @@ function closeIf(ev,id){ if(ev.target.id===id) document.getElementById(id).hidde
 
 /* ---- 적금 상품 ---- */
 var _depKind="regular";
+var _prodCat="all", _prodStatus="all";
+function prodCat(c){ _prodCat=c; renderProducts(); }
+function prodStat(s){ _prodStatus=(_prodStatus===s?"all":s); renderProducts(); }
 function warnIfLoan(afterBal, extra, proceed){
   if(afterBal<0){ confirmSheet("이러면 대출돼요", extra||("텅장 잔고를 넘어서 "+fmt(-afterBal)+"kcal를 미리 당겨쓰게 돼요."), "그래도 진행", proceed); }
   else proceed();
@@ -854,9 +871,18 @@ function closeDep(id){
   });
 }
 function renderProducts(){
+  ["all","regular","free","deposit"].forEach(function(k){ var e=$("#pc-"+k); if(e)e.className="pchip"+(_prodCat===k?" on":""); });
+  ["active","matured"].forEach(function(k){ var e=$("#ps-"+k); if(e)e.className="pchip"+(_prodStatus===k?" on":""); });
   var wrap=$("#dep-list"); wrap.innerHTML="";
-  var deps=(state.deposits||[]).filter(function(d){return d.status==="active";});
-  if(!deps.length){ wrap.appendChild(el("p","empty","가입한 상품이 없어요.\n적금·예금을 만들어 칼로리를 묶어보세요.")); return; }
+  var all=(state.deposits||[]).filter(function(d){return d.status==="active";});
+  if(!all.length){ wrap.appendChild(el("p","empty","가입한 상품이 없어요.\n적금·예금을 만들어 칼로리를 묶어보세요.")); return; }
+  var deps=all.filter(function(d){
+    if(_prodCat!=="all" && d.kind!==_prodCat) return false;
+    if(_prodStatus==="active" && depMatured(d)) return false;
+    if(_prodStatus==="matured" && !depMatured(d)) return false;
+    return true;
+  });
+  if(!deps.length){ wrap.appendChild(el("p","empty","조건에 맞는 상품이 없어요.")); return; }
   deps.forEach(function(dp){
     var pr=depPrincipal(dp), it=depInterest(dp), mat=depMatured(dp), isFree=dp.kind==="free";
     var kindLabel=dp.kind==="regular"?"정기적금":dp.kind==="deposit"?"예금":"자유적금";

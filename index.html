@@ -676,7 +676,7 @@ function renderCalendar(){
     var cell=el("div","cal-cell"+(k===tk?" today":"")); cell.setAttribute("onclick","selectDate('"+k+"')");
     cell.appendChild(el("div","cal-num",String(day)));
     var d=state.days[k];
-    if(d&&(d.food.length||d.exercise.length)){ var net=dayNet(d); cell.appendChild(el("div","cal-mark "+(net<0?"neg":"pos"),(net<0?"−":"+")+fmt(Math.abs(net)))); }
+    if(d&&(d.food.length||d.exercise.length||d.fasted)){ var net=dayNet(d); cell.appendChild(el("div","cal-mark "+(net<0?"neg":"pos"),(net<0?"−":"+")+fmt(Math.abs(net)))); }
     grid.appendChild(cell);
   }
 }

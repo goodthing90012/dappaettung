@@ -394,10 +394,17 @@ input,select{-webkit-user-select:text;user-select:text;}
 .entry.ex .entry-kcal{color:var(--ex);}
 .entry-del{border:none;background:none;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:4px 6px;}
 
+.split-toggle{border:1px dashed var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:12px;padding:7px 12px;border-radius:999px;cursor:pointer;margin:-2px 0 6px;}
+.split-toggle.on{border-style:solid;border-color:var(--sky);background:var(--sky-soft);color:var(--sky-deep);}
+.split-row{display:flex;align-items:center;gap:8px;margin:-4px 0 4px;padding:2px 2px;flex-wrap:wrap;}
+.split-lbl{font-size:12px;color:var(--ink-soft);font-weight:700;flex-shrink:0;}
+.split-in{width:72px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-family:inherit;font-size:13px;background:#f7fafd;}
+.split-preview{font-size:12px;color:var(--sky-deep);font-weight:700;font-family:var(--mono);margin:2px 2px 4px;min-height:0;}
 .adders{display:flex;flex-direction:column;gap:8px;}
 .adder{display:flex;gap:6px;}
 .in-name{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-family:inherit;font-size:14px;background:#f7fafd;}
 .in-kcal{width:72px;border:1px solid var(--line);border-radius:10px;padding:11px 8px;font-family:var(--mono);font-size:14px;text-align:right;background:#f7fafd;}
+.in-split{width:52px;border:1px solid var(--sky);border-radius:10px;padding:11px 6px;font-family:var(--mono);font-size:14px;text-align:center;background:var(--sky-soft);color:var(--sky-deep);}
 input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
 .btn{border:none;border-radius:10px;font-family:inherit;font-weight:700;font-size:14px;padding:11px 14px;cursor:pointer;color:#fff;white-space:nowrap;}
 .btn:active{transform:scale(.97);}
@@ -532,9 +539,12 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <div class="adders">
         <div class="adder">
           <input id="food-name" class="in-name" type="text" placeholder="먹은 것 (예: 점심)" />
-          <input id="food-kcal" class="in-kcal" type="number" inputmode="numeric" placeholder="kcal" onkeydown="if(event.key==='Enter')commitEntry('food')" />
+          <input id="food-kcal" class="in-kcal" type="number" inputmode="numeric" placeholder="kcal" oninput="previewSplit()" onkeydown="if(event.key==='Enter')commitEntry('food')" />
+          <input id="food-split" class="in-split" type="number" inputmode="numeric" placeholder="명" oninput="previewSplit()" onkeydown="if(event.key==='Enter')commitEntry('food')" hidden />
           <button id="add-food" class="btn food" onclick="commitEntry('food')">먹음</button>
         </div>
+        <button id="split-toggle" class="split-toggle" onclick="toggleSplit()">🍕 나눠 먹기</button>
+        <div id="split-preview" class="split-preview"></div>
         <div class="adder">
           <input id="ex-name" class="in-name" type="text" placeholder="운동 (예: 달리기)" />
           <input id="ex-kcal" class="in-kcal" type="number" inputmode="numeric" placeholder="kcal" onkeydown="if(event.key==='Enter')commitEntry('exercise')" />
@@ -1073,12 +1083,31 @@ function saveEntryEdit(){
     if(it){ it.name=$("#ee-name").value.trim(); var kc=Math.round(Number($("#ee-kcal").value)); if(kc>0) it.kcal=kc; } }
   _editEntry=null; save(); render(); toast("수정했어요");
 }
+var _splitOpen=false;
+function toggleSplit(){
+  _splitOpen=!_splitOpen;
+  var sp=$("#food-split"), btn=$("#split-toggle");
+  if(sp) sp.hidden=!_splitOpen;
+  if(btn){ btn.className="split-toggle"+(_splitOpen?" on":""); btn.textContent=_splitOpen?"🍕 나눠 먹기 끄기":"🍕 나눠 먹기"; }
+  if(!_splitOpen && sp) sp.value="";
+  previewSplit();
+  if(_splitOpen && sp) sp.focus();
+}
+function previewSplit(){
+  var el2=$("#split-preview"); if(!el2) return;
+  var kc=Math.round(Number($("#food-kcal").value)), n=Math.round(Number($("#food-split").value));
+  el2.textContent=(kc>0 && n>1) ? ("1인분 ≈ "+fmt(Math.round(kc/n))+"kcal") : "";
+}
 function commitEntry(kind){
   var nameEl=kind==="food"?$("#food-name"):$("#ex-name"), kcalEl=kind==="food"?$("#food-kcal"):$("#ex-kcal");
   var name=nameEl.value.trim(), kcal=Math.round(Number(kcalEl.value));
   if(!kcal||kcal<=0){ kcalEl.focus(); return; }
+  if(kind==="food"){
+    var sp=$("#food-split"), n=Math.round(Number(sp&&sp.value));
+    if(_splitOpen && n>1){ kcal=Math.round(kcal/n); name = name ? (name+" (1/"+n+")") : ("나눠 먹기 (1/"+n+")"); }
+  }
   var k=selectedDate||todayKey(), d=ensureDay(k);
-  function doAdd(){ if(kind==="food") d.fasted=false; (kind==="food"?d.food:d.exercise).push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:name,kcal:kcal}); save(); nameEl.value=""; kcalEl.value=""; render(); }
+  function doAdd(){ if(kind==="food") d.fasted=false; (kind==="food"?d.food:d.exercise).push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:name,kcal:kcal}); save(); nameEl.value=""; kcalEl.value=""; if(kind==="food"){ var sp2=$("#food-split"); if(sp2){ sp2.value=""; sp2.hidden=true; } _splitOpen=false; var sbtn=$("#split-toggle"); if(sbtn){ sbtn.className="split-toggle"; sbtn.textContent="🍕 나눠 먹기"; } previewSplit(); } render(); }
   if(kind==="food"){
     var projected=balanceIfFood(k,kcal);
     if(projected < 0){ confirmSheet("대출할까요?","이거 먹으면 텅장 잔고를 넘어서 "+fmt(-projected)+"kcal를 미리 당겨쓰게 돼요.","그래도 당기기",doAdd); return; }

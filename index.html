@@ -114,6 +114,11 @@ input,select{-webkit-user-select:text;user-select:text;}
 .dep-form-row{display:flex;gap:8px;}
 .dep-form-row .in-kcal{flex:1;width:auto;}
 .led-row.savings .led-memo{color:var(--sky-deep);}
+.loan-banner{background:#fdecec;color:#d23b3b;padding:12px 14px;border-radius:12px;margin-top:12px;text-align:center;}
+.lb-amt{font-weight:800;font-size:14px;}
+.lb-sub{font-size:12px;font-weight:600;opacity:.85;margin-top:3px;}
+.led-row.loan{background:#fef5f5;}
+.led-row.loan .led-run{color:#d23b3b;font-weight:800;}
 
 /* ---------- streak / weekly / savings ---------- */
 .streak-banner{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px;}
@@ -140,6 +145,7 @@ input,select{-webkit-user-select:text;user-select:text;}
 /* ---------- credit / loan card ---------- */
 .credit-card{display:flex;align-items:stretch;background:var(--card);border:1px solid var(--line);
   border-radius:18px;padding:16px;margin-top:14px;}
+.credit-card.single{justify-content:center;text-align:center;}
 .credit-half{flex:1;text-align:center;}
 .credit-div{width:1px;background:var(--line);margin:0 8px;}
 .ch-label{font-size:12px;color:var(--ink-soft);}
@@ -301,6 +307,7 @@ input,select{-webkit-user-select:text;user-select:text;}
 .fav-add .in-name{flex:1;min-width:0;}
 .fav-add .in-kcal{width:64px;}
 .fav-add .btn{padding:10px 12px;font-size:13px;}
+.fav-search{margin:0 12px 10px;width:calc(100% - 24px);}
 .fav-list{border-top:1px solid var(--line);}
 .fav-list .empty{padding:16px;}
 .fav-row{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line);}
@@ -316,6 +323,8 @@ input,select{-webkit-user-select:text;user-select:text;}
 .fav-cancel{display:block;width:calc(100% - 24px);margin:0 12px 12px;border:1px solid var(--line);
   background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13px;
   padding:10px;border-radius:10px;cursor:pointer;}
+.fav-search-in{display:block;width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-family:inherit;font-size:13px;background:#f7fafd;margin-bottom:10px;}
+.fav-none{font-size:13px;color:var(--ink-soft);padding:4px 2px;}
 .fav-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
 .fav-add-btn{display:block;width:100%;border:1px dashed var(--sky);background:var(--sky-soft);color:var(--sky-deep);
   font-family:inherit;font-weight:700;font-size:13px;padding:10px;border-radius:12px;cursor:pointer;margin-bottom:12px;}
@@ -438,18 +447,12 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <button id="hero-add" class="hero-btn" onclick="selectDate(todayKey())">＋ 오늘 기록하기</button>
     </div>
 
-    <div class="credit-card">
+    <div class="credit-card single">
       <div class="credit-half">
         <div class="ch-label">텅장등급</div>
         <div id="credit-grade" class="credit-grade g1">텅장 재벌</div>
         <div id="credit-badge" class="credit-badge g1">1등급</div>
         <div id="credit-sub" class="ch-sub">아주 좋아요</div>
-      </div>
-      <div class="credit-div"></div>
-      <div class="credit-half">
-        <div class="ch-label">대출 횟수</div>
-        <div id="loan-count" class="loan-count">0회</div>
-        <div id="loan-sub" class="ch-sub">깨끗해요</div>
       </div>
     </div>
 
@@ -503,6 +506,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <span id="in-sub" class="day-sub">목표 0 · 먹음 0 · 운동 0</span>
       </div>
       <button id="fast-btn" class="fast-btn" onclick="toggleFast()">🚫 이 날 안 먹음</button>
+      <input id="fav-chip-search" class="fav-search-in" type="text" placeholder="즐겨찾기 검색" oninput="renderFavChips()" hidden />
       <div id="fav-chips" class="fav-chips" hidden></div>
       <button id="fav-add-btn" class="fav-add-btn" onclick="goToFavAdd()">＋ 즐겨찾기 등록</button>
       <div class="adders">
@@ -556,6 +560,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
           <div class="chip ex"><small>운동으로 번</small><span id="pb-earned">+0</span></div>
         </div>
       </div>
+      <div id="loan-banner" class="loan-banner" hidden></div>
       <div class="flt-bar">
         <div class="flt-line1">
           <span id="flt-range" class="flt-range">전체 기간</span>
@@ -613,6 +618,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <button id="fav-submit" class="btn primary" onclick="addFav()">등록</button>
       </div>
       <button id="fav-cancel" class="fav-cancel" hidden onclick="cancelEditFav()">수정 취소</button>
+      <input id="fav-search" class="in-name" type="text" placeholder="즐겨찾기 검색" oninput="renderFavSettings()" hidden />
       <div id="fav-list" class="fav-list"></div>
     </div>
     <div class="set-group">
@@ -940,8 +946,6 @@ function renderHome(){
   $("#credit-grade").textContent=NICK[cr.grade]; $("#credit-grade").className="credit-grade g"+cr.grade;
   $("#credit-badge").textContent=cr.grade+"등급"; $("#credit-badge").className="credit-badge g"+cr.grade;
   $("#credit-sub").textContent=cr.inLoan?"상환하면 회복":(cr.loans>0?"잘 갚는 중 👍":"아주 좋아요");
-  $("#loan-count").textContent=cr.loans+"회";
-  $("#loan-sub").textContent=cr.inLoan?"현재 대출 중":(cr.repays>0?cr.repays+"회 상환 성공":"깨끗해요");
   var stk=computeStreak();
   $("#streak-text").textContent = stk.current>0 ? (stk.current+"일 연속 기록 중!") : "오늘 기록하고 연속 시작해요";
   $("#streak-best").textContent = stk.best>1 ? ("최고 "+stk.best+"일") : "";
@@ -1036,7 +1040,7 @@ function balanceIfFood(k,addKcal){
     var n=dayNet(ensureDay(key));
     if(key===k) n-=addKcal;
     return a+n;
-  },0);
+  },0) + savingsSum(); // 적금·예금에 잠긴 칼로리까지 반영
 }
 function editEntry(date,kind,id){ _editEntry={date:date,kind:kind,id:id}; render(); }
 function cancelEntryEdit(){ _editEntry=null; render(); }
@@ -1091,6 +1095,7 @@ function renderPassbook(){
   $("#pb-balance").textContent=signed(t.balance); $("#pb-balance").className="pb-balance "+(t.balance<0?"neg":"");
   $("#pb-bal-label").textContent=t.balance<0?"대출 잔액":"누적 잔고";
   $("#pb-saved").textContent="+"+fmt(t.saved); $("#pb-over").textContent="−"+fmt(t.over); $("#pb-earned").textContent="+"+fmt(t.earned);
+  var lb=$("#loan-banner"); if(lb){ if(t.balance<0){ var _cr=computeCredit(); lb.hidden=false; lb.innerHTML="<div class=\"lb-amt\">🔴 현재 대출 "+fmt(-t.balance)+"kcal</div><div class=\"lb-sub\">이번 달 "+_cr.monthLoans+"회 · 누적 "+_cr.loans+"회 당겨썼어요</div>"; } else { lb.hidden=true; } }
   var startKey=periodStartKey(_fltPeriod);
   $("#flt-summary").textContent=pLabel(_fltPeriod).replace(" 기간","")+" · "+tLabel(_fltType)+" · 최신순";
   $("#flt-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(todayKey())):"전체 기간";
@@ -1111,7 +1116,7 @@ function renderPassbook(){
   var frag=document.createDocumentFragment();
   dates.forEach(function(dk){
     byDate[dk].forEach(function(x,idx){
-      var row=el("div","led-row"+(x.budget?" budget":" sub")+(x.savings?" savings":"")); row.setAttribute("onclick","selectDate('"+dk+"')");
+      var row=el("div","led-row"+(x.budget?" budget":" sub")+(x.savings?" savings":"")+(x.bal<0?" loan":"")); row.setAttribute("onclick","selectDate('"+dk+"')");
       var dc=el("div","led-date"); if(idx===0){ dc.innerHTML=shortDate(dk)+"<span>"+weekdayKr(dk)+"</span>"; }
       row.appendChild(dc);
       row.appendChild(el("div","led-memo",x.memo));
@@ -1232,12 +1237,18 @@ function buildTxns(){
   return rows;
 }
 function computeCredit(){
-  var txns=buildTxns(), prev=0, loans=0, repays=0;
-  txns.forEach(function(x){ if(prev>=0 && x.bal<0) loans++; if(prev<0 && x.bal>=0) repays++; prev=x.bal; });
+  // 지출(음식·예치 등 마이너스 거래)이 빚을 만들거나 더 깊게 하면 그때마다 대출 +1.
+  // 예산 입금(+)은 대출이 아니며, 빚을 완전히 턴 시점은 상환 성공 +1.
+  var txns=buildTxns(), prev=0, loans=0, repays=0, monthLoans=0, mk=todayKey().slice(0,7);
+  txns.forEach(function(x){
+    if(x.amt<0 && x.bal<0){ loans++; if((x.date||"").slice(0,7)===mk) monthLoans++; }
+    else if(prev<0 && x.bal>=0) repays++;
+    prev=x.bal;
+  });
   var bal=prev, g=state.goal||2000;
   // 현재 갚아야 할 빚(마이너스 잔고)만 등급에 영향. 다 갚으면 1등급으로 완전 회복
   var grade = bal>=0 ? 1 : Math.max(2, Math.min(5, 2 + Math.floor((-bal)/g)));
-  return {loans:loans, repays:repays, grade:grade, inLoan:bal<0};
+  return {loans:loans, repays:repays, monthLoans:monthLoans, grade:grade, inLoan:bal<0};
 }
 function computeStreak(){
   var act={}; activeKeys().forEach(function(k){ act[k]=true; });
@@ -1323,9 +1334,13 @@ function delFav(id){
 function renderFavSettings(){
   $("#fav-submit").textContent = _editFav ? "수정 완료" : "등록";
   $("#fav-cancel").hidden = !_editFav;
+  var srch=$("#fav-search"); if(srch) srch.hidden=!state.favs.length;
   var wrap=$("#fav-list"); wrap.innerHTML="";
   if(!state.favs.length){ wrap.appendChild(el("p","empty","등록한 즐겨찾기가 없어요.")); return; }
-  state.favs.slice().reverse().forEach(function(f){
+  var q=((srch&&srch.value)||"").trim().toLowerCase();
+  var favs=state.favs.slice().reverse().filter(function(f){ return !q||((f.name||"").toLowerCase().indexOf(q)>=0); });
+  if(!favs.length){ wrap.appendChild(el("p","empty","검색 결과가 없어요.")); return; }
+  favs.forEach(function(f){
     var row=el("div","fav-row"+(f.id===_editFav?" editing":""));
     row.appendChild(el("span","fav-tag "+(f.kind==="food"?"food":"ex"), f.kind==="food"?"먹음":"운동"));
     row.appendChild(el("span","fav-name",f.name));
@@ -1337,10 +1352,14 @@ function renderFavSettings(){
 }
 function renderFavChips(){
   var wrap=$("#fav-chips"); if(!wrap) return;
-  wrap.innerHTML="";
-  if(!state.favs.length){ wrap.hidden=true; return; }
-  wrap.hidden=false;
-  state.favs.forEach(function(f){
+  var srch=$("#fav-chip-search");
+  if(!state.favs.length){ wrap.hidden=true; wrap.innerHTML=""; if(srch)srch.hidden=true; return; }
+  if(srch)srch.hidden=false;
+  var q=((srch&&srch.value)||"").trim().toLowerCase();
+  var list=state.favs.filter(function(f){ return !q||((f.name||"").toLowerCase().indexOf(q)>=0); });
+  wrap.hidden=false; wrap.innerHTML="";
+  if(!list.length){ wrap.appendChild(el("span","fav-none","검색 결과 없음")); return; }
+  list.forEach(function(f){
     var c=el("button","fav-chip "+(f.kind==="food"?"food":"ex"));
     c.setAttribute("onclick","useFav('"+f.id+"')");
     c.appendChild(el("span","fc-name",f.name));

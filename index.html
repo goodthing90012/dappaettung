@@ -48,6 +48,22 @@ input,select{-webkit-user-select:text;user-select:text;}
 .hero-num.neg{color:#ffd9d9;}
 .hero-caption{font-size:12px;opacity:.9;margin-top:2px;}
 .hero-stats{display:flex;gap:8px;margin:14px 0 12px;background:rgba(255,255,255,.14);border-radius:12px;padding:10px 6px;}
+/* payslip layout */
+.pay-head{font-size:12px;font-weight:800;letter-spacing:.02em;opacity:.95;padding-bottom:10px;margin-bottom:12px;border-bottom:1px dashed rgba(255,255,255,.4);}
+.pay-main{text-align:center;margin-bottom:14px;}
+.pay-label{font-size:12px;opacity:.95;}
+.pay-main .hero-num{margin-top:4px;}
+.pay-main .hero-caption{margin-top:2px;}
+.pay-lines{background:rgba(255,255,255,.14);border-radius:12px;padding:4px 12px;margin-bottom:12px;}
+.pay-line{display:flex;justify-content:space-between;align-items:center;padding:9px 0;font-size:13px;}
+.pay-line+.pay-line{border-top:1px dashed rgba(255,255,255,.28);}
+.pay-line span{opacity:.92;}
+.pay-line b{font-family:var(--mono);font-weight:700;font-variant-numeric:tabular-nums;}
+.pay-line b.minus{color:#ffd9d9;}
+.pay-foot{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;margin-bottom:12px;background:rgba(255,255,255,.22);border-radius:12px;font-size:13px;font-weight:700;}
+.pay-foot b{font-family:var(--mono);font-weight:800;font-variant-numeric:tabular-nums;}
+.pay-foot b.neg{color:#ffe0a3;}
+
 .hero-stats>div{flex:1;text-align:center;}
 .hero-stats span{display:block;font-family:var(--mono);font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;}
 .hero-stats small{display:block;font-size:10px;opacity:.85;margin-top:2px;}
@@ -432,17 +448,21 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
 
   <!-- ===== 홈 (달력) ===== -->
   <section id="tab-home" class="content">
-    <div class="hero">
-      <div class="hero-row">
-        <span class="hero-title">오늘 더 먹을 수 있는 칼로리</span>
-        <span class="hero-bal-wrap"><span id="hero-bal-label">모아둔 칼로리</span> <b id="hero-bal">0</b></span>
+    <div class="hero payslip">
+      <div class="pay-head">📄 오늘의 급여 명세서</div>
+      <div class="pay-main">
+        <span class="pay-label">오늘 더 먹을 수 있는 칼로리</span>
+        <div id="hero-left" class="hero-num">0</div>
+        <div id="hero-caption" class="hero-caption">오늘 더 먹을 수 있어요</div>
       </div>
-      <div id="hero-left" class="hero-num">0</div>
-      <div id="hero-caption" class="hero-caption">오늘 더 먹을 수 있어요</div>
-      <div class="hero-stats">
-        <div><span id="hero-goal">0</span><small>목표</small></div>
-        <div><span id="hero-eaten">0</span><small>먹음</small></div>
-        <div><span id="hero-burned">0</span><small>운동</small></div>
+      <div class="pay-lines">
+        <div class="pay-line"><span>기본급 (목표 칼로리)</span><b id="hero-goal">+0</b></div>
+        <div class="pay-line"><span>운동 수당</span><b id="hero-burned">+0</b></div>
+        <div class="pay-line"><span>칼로리 공제</span><b id="hero-eaten" class="minus">−0</b></div>
+      </div>
+      <div class="pay-foot">
+        <span id="hero-bal-label">모아둔 칼로리 (누적)</span>
+        <b id="hero-bal">0</b>
       </div>
       <button id="hero-add" class="hero-btn" onclick="selectDate(todayKey())">＋ 오늘 기록하기</button>
     </div>
@@ -939,8 +959,8 @@ function renderHome(){
   var consumed=sum(d.food), burned=sum(d.exercise), allowance=(d.goal||state.goal)+burned, left=allowance-consumed;
   $("#hero-left").textContent=signed(left); $("#hero-left").className="hero-num "+(left<0?"neg":"");
   $("#hero-caption").textContent=left<0?"오늘 텅장을 넘겼어요":"오늘 더 먹을 수 있어요";
-  $("#hero-goal").textContent=fmt(d.goal||state.goal); $("#hero-eaten").textContent=fmt(consumed); $("#hero-burned").textContent=fmt(burned);
-  var bal=balance(); $("#hero-bal").textContent=signed(bal); $("#hero-bal").className=bal<0?"neg":""; $("#hero-bal-label").textContent=bal<0?"대출 중":"모아둔 칼로리";
+  $("#hero-goal").textContent="+"+fmt(d.goal||state.goal); $("#hero-eaten").textContent="−"+fmt(consumed); $("#hero-burned").textContent="+"+fmt(burned);
+  var bal=balance(); $("#hero-bal").textContent=signed(bal); $("#hero-bal").className=bal<0?"neg":""; $("#hero-bal-label").textContent=bal<0?"대출 중 (누적)":"모아둔 칼로리 (누적)";
   var cr=computeCredit();
   var NICK=["","텅장 재벌","알뜰 부자","평범 텅민","위태 텅민","텅장 파산"];
   $("#credit-grade").textContent=NICK[cr.grade]; $("#credit-grade").className="credit-grade g"+cr.grade;

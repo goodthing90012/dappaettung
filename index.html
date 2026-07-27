@@ -1086,6 +1086,42 @@ function renderLedger(){
   renderInput();
   if(ledgerSub==="stack") renderStack(); else renderPassbook();
 }
+function renderPassbook(){
+  var t=totals();
+  $("#pb-balance").textContent=signed(t.balance); $("#pb-balance").className="pb-balance "+(t.balance<0?"neg":"");
+  $("#pb-bal-label").textContent=t.balance<0?"대출 잔액":"누적 잔고";
+  $("#pb-saved").textContent="+"+fmt(t.saved); $("#pb-over").textContent="−"+fmt(t.over); $("#pb-earned").textContent="+"+fmt(t.earned);
+  var startKey=periodStartKey(_fltPeriod);
+  $("#flt-summary").textContent=pLabel(_fltPeriod).replace(" 기간","")+" · "+tLabel(_fltType)+" · 최신순";
+  $("#flt-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(todayKey())):"전체 기간";
+  $("#bal-toggle").className="tgl"+(_showBal?" on":"");
+  var led=$("#ledger"); led.className="ledger"+(_showBal?"":" no-bal");
+  var lh=$("#led-head"); if(lh) lh.className="led-head"+(_showBal?"":" no-bal");
+  led.innerHTML="";
+  var all=buildTxns().filter(function(x){
+    if(startKey && x.date<startKey) return false;
+    if(_fltType==="in" && x.amt<0) return false;
+    if(_fltType==="out" && x.amt>=0) return false;
+    return true;
+  });
+  if(!all.length){ led.appendChild(el("p","empty","조건에 맞는 내역이 없어요.")); return; }
+  var byDate={}, dates=[];
+  all.forEach(function(x){ if(!byDate[x.date]){byDate[x.date]=[];dates.push(x.date);} byDate[x.date].push(x); });
+  dates.sort().reverse();
+  var frag=document.createDocumentFragment();
+  dates.forEach(function(dk){
+    byDate[dk].forEach(function(x,idx){
+      var row=el("div","led-row"+(x.budget?" budget":" sub")+(x.savings?" savings":"")); row.setAttribute("onclick","selectDate('"+dk+"')");
+      var dc=el("div","led-date"); if(idx===0){ dc.innerHTML=shortDate(dk)+"<span>"+weekdayKr(dk)+"</span>"; }
+      row.appendChild(dc);
+      row.appendChild(el("div","led-memo",x.memo));
+      row.appendChild(el("div","led-amt "+(x.amt<0?"out":"in"),signed(x.amt)));
+      if(_showBal) row.appendChild(el("div","led-run"+(x.bal<0?" neg":""),fmt(x.bal)));
+      frag.appendChild(row);
+    });
+  });
+  led.appendChild(frag);
+}
 function renderStack(){
   var t=totals(), bal=t.balance;
   $("#stack-bubble").textContent=bal < 0?(fmt(-bal)+"kcal 대출 중이에요"):(fmt(bal)+"kcal 여유 있어요");

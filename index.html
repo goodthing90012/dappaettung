@@ -836,8 +836,8 @@ function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000)
 function sum(l){ return l.reduce(function(a,e){return a+(Number(e.kcal)||0);},0); }
 function dayNet(d){ return ((Number(d.goal)||state.goal)+sum(d.exercise))-sum(d.food); }
 function activeKeys(){ return Object.keys(state.days).filter(function(k){var d=state.days[k]; return d.food.length||d.exercise.length||d.fasted;}).sort(); }
-function balance(){ return activeKeys().reduce(function(a,k){return a+dayNet(state.days[k]);},0) + savingsSum(); }
-function totals(){ var s=0,o=0,e=0; activeKeys().forEach(function(k){var n=dayNet(state.days[k]); if(n>=0)s+=n; else o+=-n; e+=sum(state.days[k].exercise);}); return {saved:s,over:o,earned:e,balance:s-o+savingsSum()}; }
+function balance(){ var r=buildTxns(); return r.length? r[r.length-1].bal : 0; }
+function totals(){ var s=0,o=0,e=0; activeKeys().forEach(function(k){var n=dayNet(state.days[k]); if(n>=0)s+=n; else o+=-n; e+=sum(state.days[k].exercise);}); return {saved:s,over:o,earned:e,balance:balance()}; }
 function calcMaintenance(p){ var s=p.sex==="female"?-161:5; return Math.round((10*p.weight+6.25*p.height-5*p.age+s)*p.activity); }
 
 function $(s){ return document.querySelector(s); }
@@ -879,8 +879,7 @@ function createDep(){
   function done(msg){ state.deposits.push(dp); save(); closeNewDep(); render(); toast(msg); }
   if(_depKind==="regular"){
     var daily=Math.round(Number($("#dep-daily").value)); if(!daily||daily<=0){ toast("하루 납입 칼로리를 입력하세요"); return; } dp.daily=daily;
-    var full=daily*Math.max(1,daysBetween(todayKey(),_depMaturity)), bal=balance();
-    if(full>bal){ closeNewDep(); confirmSheet("이러면 대출돼요","총 납입액 "+fmt(full)+"kcal가 지금 잔고 "+fmt(bal)+"kcal보다 커서, 적립 도중 텅장이 대출 상태가 될 수 있어요.","그래도 가입",function(){ $("#dep-modal").hidden=true; done("적금에 가입했어요"); }); return; }
+    // 총 납입액이 지금 잔고보다 커도 가입 가능: 매일 자동이체 시점에 그날 잔고 부족하면 그날만 건너뛰어요.
     done("적금에 가입했어요");
   } else if(_depKind==="deposit"){
     var amt=Math.round(Number($("#dep-amount").value)); if(!amt||amt<=0){ toast("예치할 칼로리를 입력하세요"); return; } dp.amount=amt;
@@ -1323,34 +1322,19 @@ function depPrincipal(dp){
   if(dp.status==="claimed"||dp.status==="closed") return dp.paid||0;
   if(dp.kind==="deposit") return dp.amount||0;
   if(dp.kind==="free") return (dp.txns||[]).reduce(function(s,t){return s+t.amt;},0);
-  var termDays=depTermDays(dp), elapsed=daysBetween(dp.startKey,todayKey())+1;
-  return dp.daily*Math.max(0,Math.min(termDays,elapsed));
+  // regular: 실제로 자동이체가 성공한 날만 집계 (잔고 부족한 날은 건너뜀)
+  var applied=0;
+  buildTxns().forEach(function(r){ if(r.auto && r.depId===dp.id) applied++; });
+  return dp.daily*applied;
 }
 function depFull(dp){
-  if(dp.kind==="regular") return dp.daily*depTermDays(dp);
   if(dp.kind==="deposit") return dp.amount||0;
-  return depPrincipal(dp);
+  return depPrincipal(dp); // regular·free 모두 실제 모인 원금 기준으로 이자 계산
 }
 function depInterest(dp){ return Math.round(depFull(dp)*dp.rate/100); }
 function depMatured(dp){ return dp.maturityKey && todayKey()>=dp.maturityKey; }
 function depCanClaim(dp){ return depMatured(dp); }
-function savingsTxns(){
-  var out=[], tk=todayKey();
-  (state.deposits||[]).forEach(function(dp){
-    if(dp.status==="closed") return;
-    if(dp.kind==="regular"){
-      var termDays=depTermDays(dp);
-      for(var i=0;i<termDays;i++){ var dk=addDays(dp.startKey,i); if(dk>tk||dk>=dp.maturityKey) break; out.push({date:dk,memo:(dp.name||"적금")+" 자동납입",amt:-dp.daily}); }
-    } else if(dp.kind==="deposit"){
-      out.push({date:dp.startKey,memo:(dp.name||"예금")+" 예치",amt:-(dp.amount||0)});
-    } else {
-      (dp.txns||[]).forEach(function(t){ out.push({date:t.date,memo:(dp.name||"적금")+" 납입",amt:-t.amt}); });
-    }
-    if(dp.status==="claimed"){ out.push({date:dp.claimKey,memo:(dp.name||"상품")+" 만기수령 (이자 +"+fmt(dp.interest)+")",amt:(dp.paid+dp.interest)}); }
-  });
-  return out;
-}
-function savingsSum(){ return savingsTxns().reduce(function(s,t){return s+t.amt;},0); }
+function savingsSum(){ var raw=activeKeys().reduce(function(a,k){return a+dayNet(state.days[k]);},0); return balance()-raw; }
 function savingsEvents(){
   var ev={};
   (state.deposits||[]).forEach(function(dp){
@@ -1360,7 +1344,7 @@ function savingsEvents(){
   return ev;
 }
 function buildTxns(){
-  var rows=[];
+  var rows=[], tk=todayKey();
   activeKeys().forEach(function(k){
     var d=state.days[k], g=(d.goal||state.goal);
     rows.push({date:k,ord:0,seq:0,memo:(d.fasted&&!d.food.length)?"예산 입금 (단식)":"예산 입금",amt:g,budget:true});
@@ -1369,10 +1353,28 @@ function buildTxns(){
     ent.sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;});
     ent.forEach(function(e,i){ rows.push({date:k,ord:1,seq:i,memo:e.memo,amt:e.amt}); });
   });
-  savingsTxns().forEach(function(t){ rows.push({date:t.date,ord:2,seq:0,memo:t.memo,amt:t.amt,savings:true}); });
+  (state.deposits||[]).forEach(function(dp){
+    if(dp.status==="closed") return;
+    if(dp.kind==="regular"){
+      var termDays=depTermDays(dp);
+      for(var i=0;i<termDays;i++){ var dk=addDays(dp.startKey,i); if(dk>tk||dk>=dp.maturityKey) break;
+        rows.push({date:dk,ord:2,seq:0,memo:(dp.name||"적금")+" 자동납입",amt:-dp.daily,savings:true,auto:true,depId:dp.id}); }
+    } else if(dp.kind==="deposit"){
+      rows.push({date:dp.startKey,ord:2,seq:0,memo:(dp.name||"예금")+" 예치",amt:-(dp.amount||0),savings:true});
+    } else {
+      (dp.txns||[]).forEach(function(t){ rows.push({date:t.date,ord:2,seq:0,memo:(dp.name||"적금")+" 납입",amt:-t.amt,savings:true}); });
+    }
+    if(dp.status==="claimed"){ rows.push({date:dp.claimKey,ord:2,seq:0,memo:(dp.name||"상품")+" 만기수령 (이자 +"+fmt(dp.interest)+")",amt:(dp.paid+dp.interest),savings:true}); }
+  });
   rows.sort(function(a,b){ if(a.date<b.date)return -1; if(a.date>b.date)return 1; if(a.ord!==b.ord)return a.ord-b.ord; return a.seq-b.seq; });
-  var run=0; rows.forEach(function(r){ run+=r.amt; r.bal=run; });
-  return rows;
+  var run=0, kept=[];
+  rows.forEach(function(r){
+    if(r.auto){
+      if(run+r.amt<0){ r.skipped=true; return; } // 그날 잔고 부족 → 자동이체 건너뜀 (연체 아님, 다음 기회에 재시도 안 함)
+      run+=r.amt; r.bal=run; kept.push(r);
+    } else { run+=r.amt; r.bal=run; kept.push(r); }
+  });
+  return kept;
 }
 function computeCredit(){
   // 지출(음식·예치 등 마이너스 거래)이 빚을 만들거나 더 깊게 하면 그때마다 대출 +1.

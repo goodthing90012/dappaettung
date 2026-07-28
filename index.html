@@ -216,6 +216,10 @@ input,select{-webkit-user-select:text;user-select:text;}
 .in-summary .day-num{font-size:32px;}
 .in-summary .day-sub{margin-top:4px;}
 .input-card .day-list{margin-top:12px;margin-bottom:0;}
+.quick-row{display:flex;gap:8px;margin-bottom:12px;}
+.quick-row .fast-btn{flex:1;width:auto;margin-bottom:0;}
+.fast-btn.spend{border-color:#f0c98a;color:#d98a2b;}
+.fast-btn.spend:active{transform:scale(.99);}
 .fast-btn{width:100%;border:1px dashed var(--line);background:#fff;color:var(--ink-soft);
   font-family:inherit;font-weight:700;font-size:13px;padding:11px;border-radius:12px;cursor:pointer;margin-bottom:12px;}
 .fast-btn:active{transform:scale(.99);}
@@ -532,7 +536,10 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <span id="in-left" class="day-num">0</span>
         <span id="in-sub" class="day-sub">목표 0 · 먹음 0 · 운동 0</span>
       </div>
-      <button id="fast-btn" class="fast-btn" onclick="toggleFast()">🚫 이 날 안 먹음</button>
+      <div class="quick-row">
+        <button id="fast-btn" class="fast-btn" onclick="toggleFast()">🚫 이 날 안 먹음</button>
+        <button id="spend-btn" class="fast-btn spend" onclick="spendAll()">💸 한방에 텅</button>
+      </div>
       <input id="fav-chip-search" class="fav-search-in" type="text" placeholder="즐겨찾기 검색" oninput="renderFavChips()" hidden />
       <div id="fav-chips" class="fav-chips" hidden></div>
       <button id="fav-add-btn" class="fav-add-btn" onclick="goToFavAdd()">＋ 즐겨찾기 등록</button>
@@ -1133,6 +1140,22 @@ function toggleFast(){
   if(!d.fasted && d.food.length){ toast("먹은 기록이 있어요. 지우고 표시해요"); return; }
   d.fasted=!d.fasted; save(); render();
   toast(d.fasted?"단식으로 표시했어요":"단식 표시를 해제했어요");
+}
+function spendAll(){
+  var k=selectedDate||todayKey(), d=ensureDay(k);
+  var g=(d.goal||state.goal), eaten=sum(d.food), rem=g-eaten;
+  var add = rem>0 ? rem : g;   // 목표 안 채웠으면 남은 만큼, 이미 다 썼으면 목표만큼 더(회식)
+  function doIt(){
+    d.fasted=false;
+    d.food.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7), name:"한방에 텅", kcal:add});
+    save(); render(); toast(rem>0?"오늘 예산을 다 썼어요":"목표만큼 더 먹은 걸로 기록했어요");
+  }
+  var projected=balanceIfFood(k,add);
+  if(projected<0){
+    confirmSheet("대출할까요?", "이렇게 기록하면 텅장 잔고를 넘어서 "+fmt(-projected)+"kcal를 당겨쓰게 돼요.", "그래도 기록", doIt);
+  } else {
+    confirmSheet("한방에 텅?", "오늘 목표 "+fmt(g)+"kcal를 다 쓴 걸로 기록해요. 회식·여행처럼 일일이 못 셀 때 쓰세요.", "기록", doIt);
+  }
 }
 
 /* ---- LEDGER ---- */

@@ -398,6 +398,12 @@ input,select{-webkit-user-select:text;user-select:text;}
 .entry.ex .entry-kcal{color:var(--ex);}
 .entry-del{border:none;background:none;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:4px 6px;}
 
+.split-modes{display:flex;gap:6px;margin:-2px 0 8px;}
+.split-mode{flex:1;border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:12px;padding:7px 10px;border-radius:999px;cursor:pointer;}
+.split-mode.on{border-color:var(--sky);background:var(--sky-soft);color:var(--sky-deep);}
+.split-extra{display:flex;align-items:center;gap:8px;margin:-4px 0 6px;}
+.split-extra .split-lbl{font-size:12px;color:var(--ink-soft);font-weight:700;}
+.split-extra .in-split{background:var(--sky-soft);border-color:var(--sky);color:var(--sky-deep);}
 .split-toggle{border:1px dashed var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:12px;padding:7px 12px;border-radius:999px;cursor:pointer;margin:-2px 0 6px;}
 .split-toggle.on{border-style:solid;border-color:var(--sky);background:var(--sky-soft);color:var(--sky-deep);}
 .split-row{display:flex;align-items:center;gap:8px;margin:-4px 0 4px;padding:2px 2px;flex-wrap:wrap;}
@@ -551,6 +557,14 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
           <button id="add-food" class="btn food" onclick="commitEntry('food')">먹음</button>
         </div>
         <button id="split-toggle" class="split-toggle" onclick="toggleSplit()">🍕 나눠 먹기</button>
+        <div id="split-modes" class="split-modes" hidden>
+          <button id="sm-person" class="split-mode on" onclick="setSplitMode('person')">인원 나누기</button>
+          <button id="sm-slice" class="split-mode" onclick="setSplitMode('slice')">조각 계산</button>
+        </div>
+        <div id="split-extra" class="split-extra" hidden>
+          <span class="split-lbl">내가 먹은 조각</span>
+          <input id="food-split-eaten" class="in-split" type="number" inputmode="numeric" placeholder="1" oninput="previewSplit()" onkeydown="if(event.key==='Enter')commitEntry('food')" />
+        </div>
         <div id="split-preview" class="split-preview"></div>
         <div class="adder">
           <input id="ex-name" class="in-name" type="text" placeholder="운동 (예: 달리기)" />
@@ -1091,19 +1105,44 @@ function saveEntryEdit(){
   _editEntry=null; save(); render(); toast("수정했어요");
 }
 var _splitOpen=false;
+var _splitMode="person";
 function toggleSplit(){
   _splitOpen=!_splitOpen;
-  var sp=$("#food-split"), btn=$("#split-toggle");
+  if(_splitOpen) _splitMode="person";
+  var sp=$("#food-split"), ex=$("#split-extra"), se=$("#food-split-eaten"), sm=$("#split-modes"), btn=$("#split-toggle");
   if(sp) sp.hidden=!_splitOpen;
+  if(sm) sm.hidden=!_splitOpen;
+  if(ex) ex.hidden=!(_splitOpen && _splitMode==="slice");
   if(btn){ btn.className="split-toggle"+(_splitOpen?" on":""); btn.textContent=_splitOpen?"🍕 나눠 먹기 끄기":"🍕 나눠 먹기"; }
-  if(!_splitOpen && sp) sp.value="";
+  if(!_splitOpen){ if(sp)sp.value=""; if(se)se.value=""; }
+  applySplitModeUI();
   previewSplit();
   if(_splitOpen && sp) sp.focus();
+}
+function setSplitMode(m){
+  _splitMode=m; var sp=$("#food-split"); if(sp) sp.value="";
+  var se=$("#food-split-eaten"); if(se) se.value="";
+  applySplitModeUI(); previewSplit();
+  if(sp) sp.focus();
+}
+function applySplitModeUI(){
+  var pBtn=$("#sm-person"), sBtn=$("#sm-slice"), sp=$("#food-split"), ex=$("#split-extra");
+  if(pBtn) pBtn.className="split-mode"+(_splitMode==="person"?" on":"");
+  if(sBtn) sBtn.className="split-mode"+(_splitMode==="slice"?" on":"");
+  if(sp) sp.setAttribute("placeholder", _splitMode==="person"?"명":"총조각");
+  if(ex) ex.hidden = !(_splitOpen && _splitMode==="slice");
 }
 function previewSplit(){
   var el2=$("#split-preview"); if(!el2) return;
   var kc=Math.round(Number($("#food-kcal").value)), n=Math.round(Number($("#food-split").value));
-  el2.textContent=(kc>0 && n>1) ? ("1인분 ≈ "+fmt(Math.round(kc/n))+"kcal") : "";
+  if(!(kc>0 && n>1)){ el2.textContent=""; return; }
+  if(_splitMode==="person"){
+    el2.textContent="1인분 ≈ "+fmt(Math.round(kc/n))+"kcal";
+  } else {
+    var eatenEl=$("#food-split-eaten"), eaten=eatenEl&&eatenEl.value?Math.round(Number(eatenEl.value)):1;
+    var per=kc/n;
+    el2.textContent="1조각 ≈ "+fmt(Math.round(per))+"kcal · "+eaten+"조각 먹으면 ≈ "+fmt(Math.round(per*eaten))+"kcal";
+  }
 }
 function commitEntry(kind){
   var nameEl=kind==="food"?$("#food-name"):$("#ex-name"), kcalEl=kind==="food"?$("#food-kcal"):$("#ex-kcal");
@@ -1111,10 +1150,19 @@ function commitEntry(kind){
   if(!kcal||kcal<=0){ kcalEl.focus(); return; }
   if(kind==="food"){
     var sp=$("#food-split"), n=Math.round(Number(sp&&sp.value));
-    if(_splitOpen && n>1){ kcal=Math.round(kcal/n); name = name ? (name+" (1/"+n+")") : ("나눠 먹기 (1/"+n+")"); }
+    if(_splitOpen && n>1){
+      if(_splitMode==="person"){
+        kcal=Math.round(kcal/n);
+        name = name ? (name+" (1/"+n+")") : ("나눠 먹기 (1/"+n+")");
+      } else {
+        var se=$("#food-split-eaten"), eaten=se&&se.value?Math.round(Number(se.value)):1;
+        kcal=Math.round(kcal*eaten/n);
+        name = name ? (name+" ("+eaten+"/"+n+")") : ("나눠 먹기 ("+eaten+"/"+n+")");
+      }
+    }
   }
   var k=selectedDate||todayKey(), d=ensureDay(k);
-  function doAdd(){ if(kind==="food") d.fasted=false; (kind==="food"?d.food:d.exercise).push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:name,kcal:kcal}); save(); nameEl.value=""; kcalEl.value=""; if(kind==="food"){ var sp2=$("#food-split"); if(sp2){ sp2.value=""; sp2.hidden=true; } _splitOpen=false; var sbtn=$("#split-toggle"); if(sbtn){ sbtn.className="split-toggle"; sbtn.textContent="🍕 나눠 먹기"; } previewSplit(); } render(); }
+  function doAdd(){ if(kind==="food") d.fasted=false; (kind==="food"?d.food:d.exercise).push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:name,kcal:kcal}); save(); nameEl.value=""; kcalEl.value=""; if(kind==="food"){ var sp2=$("#food-split"); if(sp2){ sp2.value=""; sp2.hidden=true; } var se2=$("#food-split-eaten"); if(se2) se2.value=""; var ex2=$("#split-extra"); if(ex2) ex2.hidden=true; var sm2=$("#split-modes"); if(sm2) sm2.hidden=true; _splitOpen=false; _splitMode="person"; var sbtn=$("#split-toggle"); if(sbtn){ sbtn.className="split-toggle"; sbtn.textContent="🍕 나눠 먹기"; } previewSplit(); } render(); }
   if(kind==="food"){
     var projected=balanceIfFood(k,kcal);
     if(projected < 0){ confirmSheet("대출할까요?","이거 먹으면 텅장 잔고를 넘어서 "+fmt(-projected)+"kcal를 미리 당겨쓰게 돼요.","그래도 당기기",doAdd); return; }

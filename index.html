@@ -102,6 +102,22 @@ input,select{-webkit-user-select:text;user-select:text;}
 .prod-title{margin:0 0 6px;font-size:18px;font-weight:800;color:var(--ink);}
 .prod-desc{margin:0 0 14px;font-size:13px;line-height:1.6;color:var(--ink-soft);}
 .dep-list{display:flex;flex-direction:column;gap:12px;}
+.psub-bar{display:flex;gap:8px;margin-bottom:14px;}
+.psub{flex:1;border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:800;font-size:14px;padding:11px;border-radius:12px;cursor:pointer;}
+.psub.on{background:var(--sky);border-color:var(--sky);color:#fff;}
+.shop-list{display:flex;flex-direction:column;gap:12px;}
+.shop-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;}
+.shop-head{display:flex;align-items:flex-start;gap:12px;}
+.shop-icon{font-size:26px;flex-shrink:0;line-height:1;}
+.shop-mid{flex:1;min-width:0;}
+.shop-name{font-size:15px;font-weight:800;color:var(--ink);}
+.shop-desc{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:3px;}
+.shop-owned{font-size:11px;font-weight:800;color:var(--sky-deep);background:var(--sky-soft);padding:3px 9px;border-radius:999px;flex-shrink:0;white-space:nowrap;}
+.shop-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+.shop-card.locked{opacity:.6;background:#f5f6f8;}
+.shop-card.locked .shop-icon{filter:grayscale(1);}
+.shop-cap{font-size:11px;color:var(--ink-soft);margin-top:8px;}
+.shop-note{font-size:12px;color:var(--ink-soft);align-self:center;}
 .prod-filter{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:2px 0 12px;-webkit-overflow-scrolling:touch;}
 .prod-filter::-webkit-scrollbar{display:none;}
 .pchip{flex-shrink:0;border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13px;padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;}
@@ -634,20 +650,33 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
 
   <!-- ===== 설정 ===== -->
   <section id="tab-products" class="content" hidden>
-    <div class="prod-intro">
-      <h2 class="prod-title">칼로리 예·적금</h2>
-      <p class="prod-desc">아낀 칼로리를 묶어두면 만기에 이자를 붙여 돌려줘요. 그만큼 나중에 더 먹을 수 있어요. 만기일과 이자율은 직접 정해요.</p>
-      <button class="btn primary wide" onclick="openNewDep()">＋ 상품 만들기</button>
+    <div class="psub-bar">
+      <button id="psub-my" class="psub on" onclick="goProdSub('my')">내 상품</button>
+      <button id="psub-shop" class="psub" onclick="goProdSub('shop')">🎁 아이템샵</button>
     </div>
-    <div class="prod-filter">
-      <button id="pc-all" class="pchip on" onclick="prodCat('all')">전체</button>
-      <button id="pc-regular" class="pchip" onclick="prodCat('regular')">정기적금</button>
-      <button id="pc-free" class="pchip" onclick="prodCat('free')">자유적금</button>
-      <button id="pc-deposit" class="pchip" onclick="prodCat('deposit')">예금</button>
-      <button id="ps-active" class="pchip" onclick="prodStat('active')">진행 중</button>
-      <button id="ps-matured" class="pchip" onclick="prodStat('matured')">수령 대기</button>
+    <div id="prod-my">
+      <div class="prod-intro">
+        <h2 class="prod-title">칼로리 예·적금</h2>
+        <p class="prod-desc">아낀 칼로리를 묶어두면 만기에 이자를 붙여 돌려줘요. 그만큼 나중에 더 먹을 수 있어요. 만기일과 이자율은 직접 정해요.</p>
+        <button class="btn primary wide" onclick="openNewDep()">＋ 상품 만들기</button>
+      </div>
+      <div class="prod-filter">
+        <button id="pc-all" class="pchip on" onclick="prodCat('all')">전체</button>
+        <button id="pc-regular" class="pchip" onclick="prodCat('regular')">정기적금</button>
+        <button id="pc-free" class="pchip" onclick="prodCat('free')">자유적금</button>
+        <button id="pc-deposit" class="pchip" onclick="prodCat('deposit')">예금</button>
+        <button id="ps-active" class="pchip" onclick="prodStat('active')">진행 중</button>
+        <button id="ps-matured" class="pchip" onclick="prodStat('matured')">수령 대기</button>
+      </div>
+      <div id="dep-list" class="dep-list"></div>
     </div>
-    <div id="dep-list" class="dep-list"></div>
+    <div id="prod-shop" hidden>
+      <div class="prod-intro">
+        <h2 class="prod-title">🎁 아이템샵</h2>
+        <p class="prod-desc">모아둔 칼로리로 텅장 생활에 도움되는 이용권을 살 수 있어요.</p>
+      </div>
+      <div id="shop-list" class="shop-list"></div>
+    </div>
   </section>
 
   <section id="tab-settings" class="content" hidden>
@@ -812,7 +841,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
 
 var STORE_KEY = "dameoktung.v1", DEFAULT_GOAL = 2000;
 var STEP_KCAL = 0.04; // 대략 1걸음당 소모 칼로리 (약 1,000걸음 ≈ 40kcal)
-function defaultState(){ return { goal:DEFAULT_GOAL, profile:null, days:{}, favs:[], savingsGoal:0, deposits:[] }; }
+function defaultState(){ return { goal:DEFAULT_GOAL, profile:null, days:{}, favs:[], savingsGoal:0, deposits:[], items:{cheat:0,relief:0,rateboost:0,shield:0}, shopTxns:[], cheatDates:[], streakShieldDates:[], purchaseLog:[] }; }
 var state = load();
 var _now = new Date(), calYear = _now.getFullYear(), calMonth = _now.getMonth();
 var selectedDate = null, activeTab = "home", ledgerSub = "stack", inputOpen = false, _confirmAction = null, _toastTimer = null;
@@ -821,7 +850,7 @@ var _editFav = null;
 var _editEntry = null;
 var _fltPeriod="all", _fltType="all", _showBal=true, _tmpP="all", _tmpT="all";
 
-function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); var s=Object.assign(defaultState(),JSON.parse(raw)); if(!Array.isArray(s.favs))s.favs=[]; if(!Array.isArray(s.deposits))s.deposits=[]; s.deposits=s.deposits.filter(function(d){return d.kind!=="goal";}); s.savingsGoal=0; return s; }catch(e){ return defaultState(); } }
+function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); var s=Object.assign(defaultState(),JSON.parse(raw)); if(!Array.isArray(s.favs))s.favs=[]; if(!Array.isArray(s.deposits))s.deposits=[]; s.deposits=s.deposits.filter(function(d){return d.kind!=="goal";}); s.savingsGoal=0; if(!s.items)s.items={cheat:0,relief:0,rateboost:0,shield:0}; if(!Array.isArray(s.shopTxns))s.shopTxns=[]; if(!Array.isArray(s.cheatDates))s.cheatDates=[]; if(!Array.isArray(s.streakShieldDates))s.streakShieldDates=[]; if(!Array.isArray(s.purchaseLog))s.purchaseLog=[]; return s; }catch(e){ return defaultState(); } }
 function save(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(state)); }catch(e){} }
 
 function keyOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -875,8 +904,10 @@ function createDep(){
   var name=$("#dep-name").value.trim(), id=Date.now()+"-"+Math.random().toString(36).slice(2,7);
   if(!_depMaturity || _depMaturity<=todayKey()){ toast("만기일을 선택하세요"); return; }
   var rate=Number($("#dep-rate").value); if(!(rate>=0)){ toast("이자율(%)을 입력하세요"); return; }
+  var boosted=false;
+  if((state.items.rateboost||0)>0){ rate+=2; state.items.rateboost--; boosted=true; }
   var dp={ id:id, name:name, kind:_depKind, rate:rate, startKey:todayKey(), maturityKey:_depMaturity, status:"active" };
-  function done(msg){ state.deposits.push(dp); save(); closeNewDep(); render(); toast(msg); }
+  function done(msg){ state.deposits.push(dp); save(); closeNewDep(); render(); toast(boosted?(msg+" (금리 우대권 사용, +2%p)"):msg); }
   if(_depKind==="regular"){
     var daily=Math.round(Number($("#dep-daily").value)); if(!daily||daily<=0){ toast("하루 납입 칼로리를 입력하세요"); return; } dp.daily=daily;
     // 총 납입액이 지금 잔고보다 커도 가입 가능: 매일 자동이체 시점에 그날 잔고 부족하면 그날만 건너뛰어요.
@@ -922,7 +953,61 @@ function renderMatPicker(){
     grid.appendChild(cell);
   }
 }
-function goProduct(id){ activeTab="products"; render(); setTimeout(function(){ var e=$("#dep-card-"+id); if(e){ try{ e.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){}}},80); }
+var SHOP_ITEMS=[
+  {id:"cheat", name:"치팅데이 쿠폰", icon:"🎉", cost:800, desc:"오늘 하루 대출 경고 없이 자유롭게 기록해요. 회식·여행 전에 미리 사두면 좋아요.",
+    unlock:function(){ return cheatUnlocked(); }, unlockDesc:function(){ return "30일 연속 기록하면 열려요 (현재 "+cheatMonthStreak()+"/30일)"; }},
+  {id:"relief", name:"연체 탕감권", icon:"🎫", cost:1500, desc:"지금 남은 대출을 즉시 0으로 청산해요.",
+    unlock:function(){ return computeCredit().repays>=1; }, unlockDesc:"대출을 완전히 상환한 적 있어야 열려요", cap:4, capPeriod:"year", capDesc:"올해 구매 4개 완료"},
+  {id:"rateboost", name:"금리 우대권", icon:"📈", cost:500, desc:"다음 적금·예금 가입 시 이자율에 자동으로 +2%p가 붙어요."},
+  {id:"shield", name:"스트릭 보호권", icon:"🛡️", cost:600, desc:"하루를 못 채워도 연속 기록이 끊기지 않게 지켜줘요."}
+];
+function itemUnlocked(it){ return !it.unlock || it.unlock(); }
+function purchasesInPeriod(id,period){
+  var tk=todayKey(), prefix = period==="month" ? tk.slice(0,7) : tk.slice(0,4);
+  return (state.purchaseLog||[]).filter(function(p){ return p.id===id && p.date.slice(0,prefix.length)===prefix; }).length;
+}
+function itemCapLeft(it){ if(!it.cap) return Infinity; return Math.max(0, it.cap-purchasesInPeriod(it.id,it.capPeriod)); }
+var prodSub="my";
+function goProdSub(s){ prodSub=s; renderProducts(); }
+function buyItem(id){
+  var it=SHOP_ITEMS.find(function(x){return x.id===id;}); if(!it) return;
+  if(id==="cheat" && !cheatUnlocked()){ toast("30일 연속 기록해야 열려요 (현재 "+cheatMonthStreak()+"일)"); return; }
+  if(!itemUnlocked(it)){ toast((typeof it.unlockDesc==="function"?it.unlockDesc():it.unlockDesc)||"아직 잠겨 있어요"); return; }
+  if(itemCapLeft(it)<=0){ toast(it.capPeriod==="month"?"이번 달 구매 한도를 다 썼어요":"올해 구매 한도를 다 썼어요"); return; }
+  function doBuy(){
+    state.shopTxns.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7), date:todayKey(), memo:it.icon+" "+it.name+" 구매", amt:-it.cost});
+    state.items[id]=(state.items[id]||0)+1;
+    state.purchaseLog.push({id:id, date:todayKey()});
+    save(); render(); toast(it.name+"을(를) 구매했어요");
+  }
+  warnIfLoan(balance()-it.cost, "이 구매로 텅장 잔고를 넘어서 "+fmt(it.cost-balance())+"kcal를 당겨쓰게 돼요.", doBuy);
+}
+function useCheat(){
+  if((state.items.cheat||0)<=0) return;
+  var k=todayKey();
+  if(isCheatDay(k)){ toast("오늘은 이미 치팅데이예요"); return; }
+  confirmSheet("치팅데이로 쓸까요?","오늘은 대출 경고 없이 자유롭게 기록할 수 있어요.","사용",function(){
+    state.items.cheat--; state.cheatDates.push(k); state.cheatLastUsed=k; save(); render(); toast("오늘은 치팅데이예요 🎉");
+  });
+}
+function useRelief(){
+  if((state.items.relief||0)<=0) return;
+  var bal=balance();
+  if(bal>=0){ toast("지금 대출이 없어요"); return; }
+  confirmSheet("대출을 탕감할까요?","지금 대출 "+fmt(-bal)+"kcal를 즉시 0으로 만들어요.","탕감",function(){
+    state.items.relief--;
+    state.shopTxns.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7), date:todayKey(), memo:"🎫 연체 탕감권 사용", amt:-bal});
+    save(); render(); toast("대출을 탕감했어요");
+  });
+}
+function useShield(){
+  if((state.items.shield||0)<=0) return;
+  var y=addDays(todayKey(),-1);
+  if((state.streakShieldDates||[]).indexOf(y)>=0){ toast("이미 보호돼 있어요"); return; }
+  confirmSheet("스트릭을 보호할까요?","어제를 기록한 걸로 쳐서 연속 기록이 끊기지 않게 해요.","보호",function(){
+    state.items.shield--; state.streakShieldDates.push(y); save(); render(); toast("스트릭을 지켰어요 🛡️");
+  });
+}
 function goProduct(id){ activeTab="products"; render(); setTimeout(function(){ var e=$("#dep-card-"+id); if(e){ try{ e.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){}}},80); }
 function closeDep(id){
   var dp=state.deposits.find(function(d){return d.id===id;}); if(!dp) return;
@@ -932,6 +1017,14 @@ function closeDep(id){
   });
 }
 function renderProducts(){
+  ["my","shop"].forEach(function(s){ var e=$("#psub-"+s); if(e)e.className="psub"+(prodSub===s?" on":""); });
+  var myV=$("#prod-my"), shopV=$("#prod-shop");
+  if(myV) myV.hidden = prodSub!=="my";
+  if(shopV) shopV.hidden = prodSub!=="shop";
+  if(prodSub==="shop"){ renderShop(); return; }
+  renderMyProducts();
+}
+function renderMyProducts(){
   ["all","regular","free","deposit"].forEach(function(k){ var e=$("#pc-"+k); if(e)e.className="pchip"+(_prodCat===k?" on":""); });
   ["active","matured"].forEach(function(k){ var e=$("#ps-"+k); if(e)e.className="pchip"+(_prodStatus===k?" on":""); });
   var wrap=$("#dep-list"); wrap.innerHTML="";
@@ -967,6 +1060,35 @@ function renderProducts(){
     }
     if(mat){ var c=el("button","btn primary dep-btn","만기 수령 (+"+fmt(it)+")"); c.setAttribute("onclick","claimDep('"+dp.id+"')"); act.appendChild(c); }
     var x=el("button","btn ghost dep-btn","해지"); x.setAttribute("onclick","closeDep('"+dp.id+"')"); act.appendChild(x);
+    card.appendChild(act);
+    wrap.appendChild(card);
+  });
+}
+function renderShop(){
+  var wrap=$("#shop-list"); if(!wrap) return; wrap.innerHTML="";
+  SHOP_ITEMS.forEach(function(it){
+    var owned=state.items[it.id]||0;
+    var locked=!itemUnlocked(it);
+    var card=el("div","shop-card"+(locked?" locked":""));
+    var head=el("div","shop-head");
+    head.appendChild(el("span","shop-icon",locked?"🔒":it.icon));
+    var mid=el("div","shop-mid");
+    mid.appendChild(el("div","shop-name",it.name));
+    mid.appendChild(el("div","shop-desc", locked?(typeof it.unlockDesc==="function"?it.unlockDesc():it.unlockDesc):it.desc));
+    head.appendChild(mid);
+    head.appendChild(el("span","shop-owned",owned>0?("보유 "+owned):""));
+    card.appendChild(head);
+    if(locked){ wrap.appendChild(card); return; }
+    var act=el("div","shop-actions");
+    var capLeft = it.cap ? itemCapLeft(it) : Infinity;
+    if(it.cap){ card.appendChild(el("div","shop-cap", it.capPeriod==="month"?("이번 달 "+capLeft+"/"+it.cap+"개 구매 가능"):("올해 "+capLeft+"/"+it.cap+"개 구매 가능"))); }
+    var buy=el("button","btn primary dep-btn", capLeft<=0?"구매 완료":("구매 −"+fmt(it.cost)));
+    if(capLeft<=0) buy.setAttribute("disabled","disabled"); else buy.setAttribute("onclick","buyItem('"+it.id+"')");
+    act.appendChild(buy);
+    if(it.id==="cheat" && owned>0){ var u=el("button","btn ghost dep-btn",isCheatDay(todayKey())?"오늘 적용됨":"오늘 사용"); if(!isCheatDay(todayKey())) u.setAttribute("onclick","useCheat()"); else u.setAttribute("disabled","disabled"); act.appendChild(u); }
+    if(it.id==="relief" && owned>0 && balance()<0){ var u2=el("button","btn ghost dep-btn","지금 사용"); u2.setAttribute("onclick","useRelief()"); act.appendChild(u2); }
+    if(it.id==="shield" && owned>0){ var u3=el("button","btn ghost dep-btn","사용"); u3.setAttribute("onclick","useShield()"); act.appendChild(u3); }
+    if(it.id==="rateboost" && owned>0){ act.appendChild(el("span","shop-note","다음 가입 시 자동 적용")); }
     card.appendChild(act);
     wrap.appendChild(card);
   });
@@ -1177,7 +1299,7 @@ function commitEntry(kind){
   }
   var k=selectedDate||todayKey(), d=ensureDay(k);
   function doAdd(){ if(kind==="food") d.fasted=false; (kind==="food"?d.food:d.exercise).push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:name,kcal:kcal}); save(); nameEl.value=""; kcalEl.value=""; if(kind==="food"){ var sp2=$("#food-split"); if(sp2){ sp2.value=""; sp2.hidden=true; } var st2=$("#food-split-total"), se2=$("#food-split-eaten"); if(st2)st2.value=""; if(se2)se2.value=""; var sr2=$("#slice-row"); if(sr2) sr2.hidden=true; var sm2=$("#split-modes"); if(sm2) sm2.hidden=true; _splitOpen=false; _splitMode="person"; var sbtn=$("#split-toggle"); if(sbtn){ sbtn.className="split-toggle"; sbtn.textContent="🍕 나눠 먹기"; } previewSplit(); } render(); }
-  if(kind==="food"){
+  if(kind==="food" && !isCheatDay(k)){
     var projected=balanceIfFood(k,kcal);
     if(projected < 0){ confirmSheet("대출할까요?","이거 먹으면 텅장 잔고를 넘어서 "+fmt(-projected)+"kcal를 미리 당겨쓰게 돼요.","그래도 당기기",doAdd); return; }
   }
@@ -1212,7 +1334,7 @@ function spendAll(){
     d.food.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7), name:"한방에 텅", kcal:add});
     save(); render(); toast(rem>0?"오늘 예산을 다 썼어요":"목표만큼 더 먹은 걸로 기록했어요");
   }
-  var projected=balanceIfFood(k,add);
+  var projected=isCheatDay(k)?0:balanceIfFood(k,add);
   if(projected<0){
     confirmSheet("대출할까요?", "이렇게 기록하면 텅장 잔고를 넘어서 "+fmt(-projected)+"kcal를 당겨쓰게 돼요.", "그래도 기록", doIt);
   } else {
@@ -1337,6 +1459,7 @@ function depCanClaim(dp){ return depMatured(dp); }
 function savingsSum(){ var raw=activeKeys().reduce(function(a,k){return a+dayNet(state.days[k]);},0); return balance()-raw; }
 function savingsEvents(){
   var ev={};
+  (state.shopTxns||[]).forEach(function(t,i){ rows.push({date:t.date,ord:1,seq:1000+i,memo:t.memo,amt:t.amt}); });
   (state.deposits||[]).forEach(function(dp){
     if(dp.status==="claimed" && dp.claimKey){ (ev[dp.claimKey]=ev[dp.claimKey]||[]).push({t:"수령",dp:dp}); }
     else if(dp.status==="active" && dp.kind!=="goal" && dp.maturityKey){ (ev[dp.maturityKey]=ev[dp.maturityKey]||[]).push({t:"만기",dp:dp}); }
@@ -1353,6 +1476,7 @@ function buildTxns(){
     ent.sort(function(a,b){return a.id<b.id?-1:a.id>b.id?1:0;});
     ent.forEach(function(e,i){ rows.push({date:k,ord:1,seq:i,memo:e.memo,amt:e.amt}); });
   });
+  (state.shopTxns||[]).forEach(function(t,i){ rows.push({date:t.date,ord:1,seq:1000+i,memo:t.memo,amt:t.amt}); });
   (state.deposits||[]).forEach(function(dp){
     if(dp.status==="closed") return;
     if(dp.kind==="regular"){
@@ -1390,8 +1514,18 @@ function computeCredit(){
   var grade = bal>=0 ? 1 : Math.max(2, Math.min(5, 2 + Math.floor((-bal)/g)));
   return {loans:loans, repays:repays, monthLoans:monthLoans, grade:grade, inLoan:bal<0};
 }
+function isCheatDay(k){ return (state.cheatDates||[]).indexOf(k)>=0; }
+function cheatMonthStreak(){
+  var since=state.cheatLastUsed||null;
+  var act={}; activeKeys().forEach(function(k){ act[k]=true; }); (state.streakShieldDates||[]).forEach(function(k){ act[k]=true; });
+  function back(n){ return addDays(todayKey(),-n); }
+  var cur=0, off = act[todayKey()]?0:(act[back(1)]?1:-1);
+  if(off>=0){ var i=off; while(true){ var dk=back(i); if(since && dk<=since) break; if(!act[dk]) break; cur++; i++; } }
+  return cur;
+}
+function cheatUnlocked(){ return cheatMonthStreak()>=30; }
 function computeStreak(){
-  var act={}; activeKeys().forEach(function(k){ act[k]=true; });
+  var act={}; activeKeys().forEach(function(k){ act[k]=true; }); (state.streakShieldDates||[]).forEach(function(k){ act[k]=true; });
   function back(n){ var d=new Date(); d.setDate(d.getDate()-n); return keyOf(d); }
   var cur=0, off = act[todayKey()]?0:(act[back(1)]?1:-1);
   if(off>=0){ var i=off; while(act[back(i)]){ cur++; i++; } }

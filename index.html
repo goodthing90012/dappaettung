@@ -127,6 +127,12 @@ input,select{-webkit-user-select:text;user-select:text;}
 .don-progress{height:10px;border-radius:999px;background:#c8e9d4;overflow:hidden;margin-top:16px;}
 .don-progress-fill{height:100%;background:linear-gradient(90deg,#6bc48f,#2f7a4d);border-radius:999px;width:0;transition:width .3s;}
 .don-next{font-size:12px;color:#2f7a4d;font-weight:700;margin-top:8px;}
+.don-month{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(47,122,77,.15);}
+.don-month-left{display:flex;align-items:center;gap:10px;min-width:0;}
+.don-month-icon{font-size:22px;line-height:1;flex-shrink:0;}
+.don-month-label{font-size:11px;color:#4a7a5c;font-weight:700;}
+.don-month-amt{font-size:15px;font-weight:800;color:#1f5c38;font-family:var(--mono);}
+.don-month-next{font-size:11px;color:#4a7a5c;text-align:right;flex-shrink:0;max-width:45%;line-height:1.4;}
 /* 기부 현황 대시보드 */
 .don-dash{background:linear-gradient(160deg,#dff3e6,#f0faf3);border:1px solid #b9e3c8;border-radius:20px;padding:18px 18px 20px;margin-bottom:14px;box-shadow:0 4px 16px rgba(47,122,77,.08);}
 .don-dash-top{display:flex;align-items:center;gap:12px;}
@@ -779,6 +785,16 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         </div>
         <div class="don-progress"><div id="don-progress-fill" class="don-progress-fill"></div></div>
         <div id="don-next" class="don-next"></div>
+        <div class="don-month">
+          <div class="don-month-left">
+            <span id="don-month-icon" class="don-month-icon">🗓️</span>
+            <div>
+              <div id="don-month-label" class="don-month-label">이번 달 기부</div>
+              <div id="don-month-amt" class="don-month-amt">0kcal</div>
+            </div>
+          </div>
+          <div id="don-month-next" class="don-month-next"></div>
+        </div>
       </div>
 
       <!-- 칼로리 기부 입력칸 (입출금 입력칸과 동일 스타일) -->
@@ -1134,6 +1150,15 @@ var DONATION_TIERS=[
 function donationTier(total){ for(var i=0;i<DONATION_TIERS.length;i++){ if(total>=DONATION_TIERS[i].min) return DONATION_TIERS[i]; } return null; }
 function donationBonusRate(total){ var t=donationTier(total); return t?t.bonus:0; }
 function donationNextTier(total){ for(var i=DONATION_TIERS.length-1;i>=0;i--){ if(total<DONATION_TIERS[i].min) return DONATION_TIERS[i]; } return null; }
+// 이번 달 기부 배지 (명예 칭호와 별개, 매달 자동 리셋, 혜택 없음)
+var MONTH_BADGES=[
+  {min:5000, label:"기부왕", icon:"🥇"},
+  {min:2000, label:"넉넉한 나눔", icon:"🥈"},
+  {min:500, label:"나눔 시작", icon:"🥉"}
+];
+function monthDonated(){ var ym=todayKey().slice(0,7); return (state.donations||[]).reduce(function(s,d){ return d.date&&d.date.slice(0,7)===ym ? s+d.amt : s; },0); }
+function monthBadge(m){ for(var i=0;i<MONTH_BADGES.length;i++){ if(m>=MONTH_BADGES[i].min) return MONTH_BADGES[i]; } return null; }
+function monthBadgeNext(m){ for(var i=MONTH_BADGES.length-1;i>=0;i--){ if(m<MONTH_BADGES[i].min) return MONTH_BADGES[i]; } return null; }
 function donate(amt){
   amt=Math.round(Number(amt));
   if(!amt||amt<=0){ toast("기부할 칼로리를 입력하세요"); return; }
@@ -1233,10 +1258,16 @@ function renderDonate(){
   var bonusEl=$("#don-bonus");
   if(tier){ bonusEl.hidden=false; bonusEl.textContent="+"+tier.bonus+"%p 우대금리 적용 중"; } else { bonusEl.hidden=true; }
   var floor = tier?tier.min:0, ceil = next?next.min:floor;
-  var rawPct = next ? Math.min(100,Math.round((total-floor)/(ceil-floor)*100)) : 100;
-  var pct = total<=0 ? 0 : Math.max(4, rawPct);
+  var pct = next ? Math.max(0,Math.min(100,Math.round((total-floor)/(ceil-floor)*100))) : 100;
   $("#don-progress-fill").style.width=pct+"%";
   $("#don-next").textContent = next ? ("다음 칭호 "+next.title+"까지 "+fmt(next.min-total)+"kcal") : "최고 칭호를 달성했어요 🎉";
+
+  // 이번 달 기부 배지
+  var mAmt=monthDonated(), mBadge=monthBadge(mAmt), mNext=monthBadgeNext(mAmt);
+  $("#don-month-icon").textContent = mBadge ? mBadge.icon : "🗓️";
+  $("#don-month-label").textContent = mBadge ? ("이번 달 · "+mBadge.label) : "이번 달 기부";
+  $("#don-month-amt").textContent = fmt(mAmt)+"kcal";
+  $("#don-month-next").textContent = mNext ? (mNext.icon+" "+mNext.label+"까지 "+fmt(mNext.min-mAmt)) : (mBadge?"이 달 최고 배지 달성 🎉":"");
 
   // 칭호 안내 표
   var wrap=$("#don-tiers"); wrap.innerHTML="";

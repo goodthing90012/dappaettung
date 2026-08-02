@@ -117,7 +117,24 @@ input,select{-webkit-user-select:text;user-select:text;}
 .shop-card.locked{opacity:.6;background:#f5f6f8;}
 .shop-card.locked .shop-icon{filter:grayscale(1);}
 .shop-cap{font-size:11px;color:var(--ink-soft);margin-top:8px;}
-.shop-note{font-size:12px;color:var(--ink-soft);align-self:center;}
+.shop-note{.dep-rate-info{background:var(--sky-soft);color:var(--sky-deep);font-weight:700;font-size:13px;padding:10px 12px;border-radius:10px;margin-bottom:8px;}
+.don-card{background:linear-gradient(135deg,#e9f7ee,#f3fbf5);border:1px solid #cdebd8;border-radius:18px;padding:18px;margin-bottom:14px;}
+.don-head{display:flex;justify-content:space-between;align-items:flex-start;}
+.don-title{font-size:17px;font-weight:800;color:#2f7a4d;}
+.don-bonus{font-size:12px;color:#4c9068;margin-top:3px;font-weight:700;}
+.don-total-wrap{text-align:right;}
+.don-total{font-size:20px;font-weight:800;color:#2f7a4d;font-family:var(--mono);}
+.don-total-label{font-size:11px;color:#4c9068;margin-top:2px;}
+.don-next{margin-top:12px;font-size:12px;color:#4c9068;font-weight:700;background:rgba(255,255,255,.6);padding:8px 10px;border-radius:10px;}
+.don-input-row{display:flex;gap:8px;margin-bottom:14px;}
+.don-input-row .in-name{flex:1;}
+.don-tiers{display:flex;flex-direction:column;gap:8px;}
+.don-tier{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);opacity:.5;}
+.don-tier.got{opacity:1;border-color:#cdebd8;background:#f3fbf5;}
+.dt-title{font-weight:800;font-size:13px;color:var(--ink);flex:1;}
+.dt-req{font-family:var(--mono);font-size:12px;color:var(--ink-soft);}
+.dt-bonus{font-family:var(--mono);font-size:12px;font-weight:800;color:#2f7a4d;}
+font-size:12px;color:var(--ink-soft);align-self:center;}
 .prod-filter{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:2px 0 12px;-webkit-overflow-scrolling:touch;}
 .prod-filter::-webkit-scrollbar{display:none;}
 .pchip{flex-shrink:0;border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:13px;padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;}
@@ -653,6 +670,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
     <div class="psub-bar">
       <button id="psub-my" class="psub on" onclick="goProdSub('my')">내 상품</button>
       <button id="psub-shop" class="psub" onclick="goProdSub('shop')">🎁 아이템샵</button>
+      <button id="psub-donate" class="psub" onclick="goProdSub('donate')">🌱 기부</button>
     </div>
     <div id="prod-my">
       <div class="prod-intro">
@@ -676,6 +694,30 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <p class="prod-desc">모아둔 칼로리로 텅장 생활에 도움되는 이용권을 살 수 있어요.</p>
       </div>
       <div id="shop-list" class="shop-list"></div>
+    </div>
+    <div id="prod-donate" hidden>
+      <div class="prod-intro">
+        <h2 class="prod-title">🌱 기부</h2>
+        <p class="prod-desc">모은 칼로리를 기부하면 칭호와 우대금리, 신용등급 개선 혜택을 받아요.</p>
+      </div>
+      <div class="don-card">
+        <div class="don-head">
+          <div>
+            <div id="don-title" class="don-title">칭호 없음</div>
+            <div id="don-bonus" class="don-bonus">우대금리 없음</div>
+          </div>
+          <div class="don-total-wrap">
+            <div id="don-total" class="don-total">0kcal</div>
+            <div class="don-total-label">누적 기부</div>
+          </div>
+        </div>
+        <div id="don-next" class="don-next" hidden></div>
+      </div>
+      <div class="don-input-row">
+        <input id="don-amount" class="in-name" type="number" inputmode="numeric" placeholder="기부할 칼로리" />
+        <button class="btn primary" onclick="submitDonate()">기부하기</button>
+      </div>
+      <div id="don-tiers" class="don-tiers"></div>
     </div>
   </section>
 
@@ -763,7 +805,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
     <p id="dep-kind-desc" class="sheet-desc">매일 정한 칼로리가 만기일까지 자동으로 쌓여요.</p>
     <input id="dep-name" class="in-name" type="text" placeholder="이름 (선택)" />
     <button id="dep-mat" class="dep-matbtn" onclick="openMatPicker()">만기일 선택</button>
-    <input id="dep-rate" class="in-name" type="number" inputmode="decimal" placeholder="이자율 (%)" />
+    <div id="dep-rate-info" class="dep-rate-info">기본 금리 3.0%</div>
     <input id="dep-daily" class="in-name" type="number" inputmode="numeric" placeholder="하루 납입 칼로리" />
     <input id="dep-amount" class="in-name" type="number" inputmode="numeric" placeholder="예치 칼로리" hidden />
     <button class="btn primary wide" onclick="createDep()">가입하기</button>
@@ -841,7 +883,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
 
 var STORE_KEY = "dameoktung.v1", DEFAULT_GOAL = 2000;
 var STEP_KCAL = 0.04; // 대략 1걸음당 소모 칼로리 (약 1,000걸음 ≈ 40kcal)
-function defaultState(){ return { goal:DEFAULT_GOAL, profile:null, days:{}, favs:[], savingsGoal:0, deposits:[], items:{cheat:0,relief:0,rateboost:0,shield:0}, shopTxns:[], cheatDates:[], streakShieldDates:[], purchaseLog:[] }; }
+function defaultState(){ return { goal:DEFAULT_GOAL, profile:null, days:{}, favs:[], savingsGoal:0, deposits:[], items:{cheat:0,relief:0,rateboost:0,shield:0}, shopTxns:[], cheatDates:[], streakShieldDates:[], purchaseLog:[], donatedTotal:0, donations:[] }; }
 var state = load();
 var _now = new Date(), calYear = _now.getFullYear(), calMonth = _now.getMonth();
 var selectedDate = null, activeTab = "home", ledgerSub = "stack", inputOpen = false, _confirmAction = null, _toastTimer = null;
@@ -850,7 +892,7 @@ var _editFav = null;
 var _editEntry = null;
 var _fltPeriod="all", _fltType="all", _showBal=true, _tmpP="all", _tmpT="all";
 
-function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); var s=Object.assign(defaultState(),JSON.parse(raw)); if(!Array.isArray(s.favs))s.favs=[]; if(!Array.isArray(s.deposits))s.deposits=[]; s.deposits=s.deposits.filter(function(d){return d.kind!=="goal";}); s.savingsGoal=0; if(!s.items)s.items={cheat:0,relief:0,rateboost:0,shield:0}; if(!Array.isArray(s.shopTxns))s.shopTxns=[]; if(!Array.isArray(s.cheatDates))s.cheatDates=[]; if(!Array.isArray(s.streakShieldDates))s.streakShieldDates=[]; if(!Array.isArray(s.purchaseLog))s.purchaseLog=[]; return s; }catch(e){ return defaultState(); } }
+function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); var s=Object.assign(defaultState(),JSON.parse(raw)); if(!Array.isArray(s.favs))s.favs=[]; if(!Array.isArray(s.deposits))s.deposits=[]; s.deposits=s.deposits.filter(function(d){return d.kind!=="goal";}); s.savingsGoal=0; if(!s.items)s.items={cheat:0,relief:0,rateboost:0,shield:0}; if(!Array.isArray(s.shopTxns))s.shopTxns=[]; if(!Array.isArray(s.cheatDates))s.cheatDates=[]; if(!Array.isArray(s.streakShieldDates))s.streakShieldDates=[]; if(!Array.isArray(s.purchaseLog))s.purchaseLog=[]; if(typeof s.donatedTotal!=="number")s.donatedTotal=0; if(!Array.isArray(s.donations))s.donations=[]; return s; }catch(e){ return defaultState(); } }
 function save(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(state)); }catch(e){} }
 
 function keyOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -890,7 +932,7 @@ function warnIfLoan(afterBal, extra, proceed){
   if(afterBal<0){ confirmSheet("이러면 대출돼요", extra||("텅장 잔고를 넘어서 "+fmt(-afterBal)+"kcal를 미리 당겨쓰게 돼요."), "그래도 진행", proceed); }
   else proceed();
 }
-function openNewDep(k){ _depKind=k||"regular"; _depMaturity=""; $("#dep-name").value=""; $("#dep-rate").value=""; $("#dep-daily").value=""; if($("#dep-amount"))$("#dep-amount").value=""; if($("#dep-mat")){ $("#dep-mat").textContent="만기일 선택"; $("#dep-mat").classList.remove("set"); } renderDepModal(); $("#dep-modal").hidden=false; }
+function openNewDep(k){ _depKind=k||"regular"; _depMaturity=""; $("#dep-name").value=""; $("#dep-daily").value=""; if($("#dep-amount"))$("#dep-amount").value=""; if($("#dep-mat")){ $("#dep-mat").textContent="만기일 선택"; $("#dep-mat").classList.remove("set"); } renderDepModal(); $("#dep-modal").hidden=false; }
 function closeNewDep(){ $("#dep-modal").hidden=true; }
 function pickKind(k){ _depKind=k; renderDepModal(); }
 function renderDepModal(){
@@ -899,11 +941,18 @@ function renderDepModal(){
   $("#dep-daily").hidden=!isR;
   $("#dep-amount").hidden=!isD;
   $("#dep-kind-desc").textContent = isR?"매일 정한 칼로리가 만기일까지 자동으로 쌓여요.":(isD?"목돈을 한 번에 넣고 만기에 원금+이자를 받아요.":"원할 때 직접 입금하고 만기에 이자를 받아요.");
+  var db=donationBonusRate(state.donatedTotal||0), rt=FIXED_RATE+db, hasBoost=(state.items.rateboost||0)>0;
+  var txt="기본 금리 "+FIXED_RATE+"%";
+  if(db>0) txt += " + 기부 우대 "+db+"%p";
+  if(hasBoost) txt += " + 금리 우대권 2%p";
+  txt += " = 총 "+(rt+(hasBoost?2:0))+"%";
+  $("#dep-rate-info").textContent=txt;
 }
+function effectiveRate(){ return FIXED_RATE + donationBonusRate(state.donatedTotal||0); }
 function createDep(){
   var name=$("#dep-name").value.trim(), id=Date.now()+"-"+Math.random().toString(36).slice(2,7);
   if(!_depMaturity || _depMaturity<=todayKey()){ toast("만기일을 선택하세요"); return; }
-  var rate=Number($("#dep-rate").value); if(!(rate>=0)){ toast("이자율(%)을 입력하세요"); return; }
+  var rate=effectiveRate();
   var boosted=false;
   if((state.items.rateboost||0)>0){ rate+=2; state.items.rateboost--; boosted=true; }
   var dp={ id:id, name:name, kind:_depKind, rate:rate, startKey:todayKey(), maturityKey:_depMaturity, status:"active" };
@@ -953,11 +1002,33 @@ function renderMatPicker(){
     grid.appendChild(cell);
   }
 }
+var FIXED_RATE=3.0;
+var DONATION_TIERS=[
+  {min:50000, title:"🌎 텅 히어로", bonus:2.0},
+  {min:20000, title:"👑 기부왕 텅", bonus:1.0},
+  {min:10000, title:"💙 큰마음 텅", bonus:0.7},
+  {min:5000, title:"💚 나눔 텅", bonus:0.5},
+  {min:1000, title:"🌱 따뜻한 텅", bonus:0.2}
+];
+function donationTier(total){ for(var i=0;i<DONATION_TIERS.length;i++){ if(total>=DONATION_TIERS[i].min) return DONATION_TIERS[i]; } return null; }
+function donationBonusRate(total){ var t=donationTier(total); return t?t.bonus:0; }
+function donationNextTier(total){ for(var i=DONATION_TIERS.length-1;i>=0;i--){ if(total<DONATION_TIERS[i].min) return DONATION_TIERS[i]; } return null; }
+function donate(amt){
+  amt=Math.round(Number(amt));
+  if(!amt||amt<=0){ toast("기부할 칼로리를 입력하세요"); return; }
+  function doIt(){
+    state.shopTxns.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7), date:todayKey(), memo:"🌱 기부", amt:-amt});
+    state.donatedTotal=(state.donatedTotal||0)+amt;
+    state.donations.push({date:todayKey(),amt:amt});
+    save(); render(); toast(fmt(amt)+"kcal 기부했어요, 고마워요 🌱");
+  }
+  warnIfLoan(balance()-amt, "이 기부로 텅장 잔고를 넘어서 "+fmt(amt-balance())+"kcal를 당겨쓰게 돼요.", doIt);
+}
 var SHOP_ITEMS=[
   {id:"cheat", name:"치팅데이 쿠폰", icon:"🎉", cost:800, desc:"오늘 하루 대출 경고 없이 자유롭게 기록해요. 회식·여행 전에 미리 사두면 좋아요.",
     unlock:function(){ return cheatUnlocked(); }, unlockDesc:function(){ return "30일 연속 기록하면 열려요 (현재 "+cheatMonthStreak()+"/30일)"; }},
   {id:"relief", name:"연체 탕감권", icon:"🎫", cost:1500, desc:"지금 남은 대출을 즉시 0으로 청산해요.",
-    unlock:function(){ return computeCredit().repays>=1; }, unlockDesc:"대출을 완전히 상환한 적 있어야 열려요", cap:4, capPeriod:"year", capDesc:"올해 구매 4개 완료"},
+    unlock:function(){ return (state.donatedTotal||0)>=5000; }, unlockDesc:function(){ return "누적 기부 5,000kcal 이상이면 열려요 (현재 "+fmt(state.donatedTotal||0)+"kcal)"; }, cap:4, capPeriod:"year", capDesc:"올해 구매 4개 완료"},
   {id:"rateboost", name:"금리 우대권", icon:"📈", cost:500, desc:"다음 적금·예금 가입 시 이자율에 자동으로 +2%p가 붙어요."},
   {id:"shield", name:"스트릭 보호권", icon:"🛡️", cost:600, desc:"하루를 못 채워도 연속 기록이 끊기지 않게 지켜줘요."}
 ];
@@ -1017,13 +1088,33 @@ function closeDep(id){
   });
 }
 function renderProducts(){
-  ["my","shop"].forEach(function(s){ var e=$("#psub-"+s); if(e)e.className="psub"+(prodSub===s?" on":""); });
-  var myV=$("#prod-my"), shopV=$("#prod-shop");
+  ["my","shop","donate"].forEach(function(s){ var e=$("#psub-"+s); if(e)e.className="psub"+(prodSub===s?" on":""); });
+  var myV=$("#prod-my"), shopV=$("#prod-shop"), donV=$("#prod-donate");
   if(myV) myV.hidden = prodSub!=="my";
   if(shopV) shopV.hidden = prodSub!=="shop";
+  if(donV) donV.hidden = prodSub!=="donate";
   if(prodSub==="shop"){ renderShop(); return; }
+  if(prodSub==="donate"){ renderDonate(); return; }
   renderMyProducts();
 }
+function renderDonate(){
+  var total=state.donatedTotal||0, tier=donationTier(total), next=donationNextTier(total);
+  $("#don-total").textContent=fmt(total)+"kcal";
+  $("#don-title").textContent=tier?tier.title:"칭호 없음";
+  $("#don-bonus").textContent=tier?("+"+tier.bonus+"%p 우대금리"):"우대금리 없음";
+  var np=$("#don-next");
+  if(next){ np.hidden=false; np.textContent="다음 칭호까지 "+fmt(next.min-total)+"kcal 남음 ("+next.title+")"; } else { np.hidden=true; }
+  var wrap=$("#don-tiers"); wrap.innerHTML="";
+  DONATION_TIERS.slice().reverse().forEach(function(t){
+    var got=total>=t.min;
+    var row=el("div","don-tier"+(got?" got":""));
+    row.appendChild(el("span","dt-title",t.title));
+    row.appendChild(el("span","dt-req",fmt(t.min)+"kcal"));
+    row.appendChild(el("span","dt-bonus","+"+t.bonus+"%p"));
+    wrap.appendChild(row);
+  });
+}
+function submitDonate(){ donate($("#don-amount").value); $("#don-amount").value=""; }
 function renderMyProducts(){
   ["all","regular","free","deposit"].forEach(function(k){ var e=$("#pc-"+k); if(e)e.className="pchip"+(_prodCat===k?" on":""); });
   ["active","matured"].forEach(function(k){ var e=$("#ps-"+k); if(e)e.className="pchip"+(_prodStatus===k?" on":""); });
@@ -1122,7 +1213,7 @@ function renderHome(){
   var NICK=["","텅장 재벌","알뜰 부자","평범 텅민","위태 텅민","텅장 파산"];
   $("#credit-grade").textContent=NICK[cr.grade]; $("#credit-grade").className="credit-grade g"+cr.grade;
   $("#credit-badge").textContent=cr.grade+"등급"; $("#credit-badge").className="credit-badge g"+cr.grade;
-  $("#credit-sub").textContent=cr.inLoan?"상환하면 회복":(cr.loans>0?"잘 갚는 중 👍":"아주 좋아요");
+  $("#credit-sub").textContent=cr.inLoan?(cr.donateBonus>0?"기부로 "+cr.donateBonus+"단계 완화됨":"상환하면 회복"):(cr.loans>0?"잘 갚는 중 👍":"아주 좋아요");
   var stk=computeStreak();
   $("#streak-text").textContent = stk.current>0 ? (stk.current+"일 연속 기록 중!") : "오늘 기록하고 연속 시작해요";
   $("#streak-best").textContent = stk.best>1 ? ("최고 "+stk.best+"일") : "";
@@ -1453,13 +1544,29 @@ function depFull(dp){
   if(dp.kind==="deposit") return dp.amount||0;
   return depPrincipal(dp); // regular·free 모두 실제 모인 원금 기준으로 이자 계산
 }
-function depInterest(dp){ return Math.round(depFull(dp)*dp.rate/100); }
+function depInterest(dp){
+  if(dp.kind==="deposit") return Math.round((dp.amount||0)*dp.rate/100);
+  var termDays=depTermDays(dp), sum=0;
+  if(dp.kind==="regular"){
+    buildTxns().forEach(function(r){
+      if(r.auto && r.depId===dp.id){
+        var heldDays=Math.max(0,daysBetween(r.date,dp.maturityKey));
+        sum += dp.daily * (dp.rate/100) * (heldDays/termDays);
+      }
+    });
+  } else { // free: 각 수동 납입일 기준
+    (dp.txns||[]).forEach(function(t){
+      var heldDays=Math.max(0,daysBetween(t.date,dp.maturityKey));
+      sum += t.amt * (dp.rate/100) * (heldDays/termDays);
+    });
+  }
+  return Math.round(sum);
+}
 function depMatured(dp){ return dp.maturityKey && todayKey()>=dp.maturityKey; }
 function depCanClaim(dp){ return depMatured(dp); }
 function savingsSum(){ var raw=activeKeys().reduce(function(a,k){return a+dayNet(state.days[k]);},0); return balance()-raw; }
 function savingsEvents(){
   var ev={};
-  (state.shopTxns||[]).forEach(function(t,i){ rows.push({date:t.date,ord:1,seq:1000+i,memo:t.memo,amt:t.amt}); });
   (state.deposits||[]).forEach(function(dp){
     if(dp.status==="claimed" && dp.claimKey){ (ev[dp.claimKey]=ev[dp.claimKey]||[]).push({t:"수령",dp:dp}); }
     else if(dp.status==="active" && dp.kind!=="goal" && dp.maturityKey){ (ev[dp.maturityKey]=ev[dp.maturityKey]||[]).push({t:"만기",dp:dp}); }
@@ -1511,8 +1618,10 @@ function computeCredit(){
   });
   var bal=prev, g=state.goal||2000;
   // 현재 갚아야 할 빚(마이너스 잔고)만 등급에 영향. 다 갚으면 1등급으로 완전 회복
-  var grade = bal>=0 ? 1 : Math.max(2, Math.min(5, 2 + Math.floor((-bal)/g)));
-  return {loans:loans, repays:repays, monthLoans:monthLoans, grade:grade, inLoan:bal<0};
+  // 기부 누적액에 비례해 등급 일부 면제(1만kcal 기부마다 한 단계씩 완화)
+  var donateBonus = Math.floor((state.donatedTotal||0)/10000);
+  var grade = bal>=0 ? 1 : Math.max(1, Math.min(5, 2 + Math.floor((-bal)/g) - donateBonus));
+  return {loans:loans, repays:repays, monthLoans:monthLoans, grade:grade, inLoan:bal<0, donateBonus:donateBonus};
 }
 function isCheatDay(k){ return (state.cheatDates||[]).indexOf(k)>=0; }
 function cheatMonthStreak(){

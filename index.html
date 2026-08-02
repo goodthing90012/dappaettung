@@ -125,7 +125,7 @@ input,select{-webkit-user-select:text;user-select:text;}
 .don-total-label{font-size:12px;color:#4c8a68;margin-top:2px;font-weight:700;}
 .don-bonus-chip{display:inline-block;margin-top:12px;background:#2f7a4d;color:#fff;font-size:12px;font-weight:800;padding:6px 14px;border-radius:999px;box-shadow:0 2px 8px rgba(47,122,77,.3);}
 .don-progress{height:10px;border-radius:999px;background:#c8e9d4;overflow:hidden;margin-top:16px;}
-.don-progress-fill{height:100%;background:linear-gradient(90deg,#6bc48f,#2f7a4d);border-radius:999px;width:4%;transition:width .3s;}
+.don-progress-fill{height:100%;background:linear-gradient(90deg,#6bc48f,#2f7a4d);border-radius:999px;width:0;transition:width .3s;}
 .don-next{font-size:12px;color:#2f7a4d;font-weight:700;margin-top:8px;}
 /* 기부 현황 대시보드 */
 .don-dash{background:linear-gradient(160deg,#dff3e6,#f0faf3);border:1px solid #b9e3c8;border-radius:20px;padding:18px 18px 20px;margin-bottom:14px;box-shadow:0 4px 16px rgba(47,122,77,.08);}
@@ -997,7 +997,23 @@ var _editFav = null;
 var _editEntry = null;
 var _fltPeriod="all", _fltType="all", _showBal=true, _tmpP="all", _tmpT="all";
 
-function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); var s=Object.assign(defaultState(),JSON.parse(raw)); if(!Array.isArray(s.favs))s.favs=[]; if(!Array.isArray(s.deposits))s.deposits=[]; s.deposits=s.deposits.filter(function(d){return d.kind!=="goal";}); s.savingsGoal=0; if(!s.items)s.items={cheat:0,relief:0,rateboost:0,shield:0}; if(!Array.isArray(s.shopTxns))s.shopTxns=[]; if(!Array.isArray(s.cheatDates))s.cheatDates=[]; if(!Array.isArray(s.streakShieldDates))s.streakShieldDates=[]; if(!Array.isArray(s.purchaseLog))s.purchaseLog=[]; if(typeof s.donatedTotal!=="number")s.donatedTotal=0; if(!Array.isArray(s.donations))s.donations=[]; return s; }catch(e){ return defaultState(); } }
+function normalizeState(s){
+  s=Object.assign(defaultState(),s||{});
+  if(!Array.isArray(s.favs))s.favs=[];
+  if(!Array.isArray(s.deposits))s.deposits=[];
+  s.deposits=s.deposits.filter(function(d){return d.kind!=="goal";});
+  s.savingsGoal=0;
+  if(!s.items||typeof s.items!=="object")s.items={cheat:0,relief:0,rateboost:0,shield:0};
+  if(!Array.isArray(s.shopTxns))s.shopTxns=[];
+  if(!Array.isArray(s.cheatDates))s.cheatDates=[];
+  if(!Array.isArray(s.streakShieldDates))s.streakShieldDates=[];
+  if(!Array.isArray(s.purchaseLog))s.purchaseLog=[];
+  if(typeof s.donatedTotal!=="number")s.donatedTotal=0;
+  if(!Array.isArray(s.donations))s.donations=[];
+  if(!s.days||typeof s.days!=="object")s.days={};
+  return s;
+}
+function load(){ try{ var raw=localStorage.getItem(STORE_KEY); if(!raw)return defaultState(); return normalizeState(JSON.parse(raw)); }catch(e){ return defaultState(); } }
 function save(){ try{ localStorage.setItem(STORE_KEY,JSON.stringify(state)); }catch(e){} }
 
 function keyOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -1127,7 +1143,12 @@ function donate(amt){
     state.donations.push({date:todayKey(),amt:amt});
     save(); render(); toast(fmt(amt)+"kcal 기부했어요, 고마워요 🌱");
   }
-  warnIfLoan(balance()-amt, "이 기부로 텅장 잔고를 넘어서 "+fmt(amt-balance())+"kcal를 당겨쓰게 돼요.", doIt);
+  var afterBal=balance()-amt;
+  if(afterBal<0){
+    confirmSheet("이러면 대출돼요", "이 기부로 텅장 잔고를 넘어서 "+fmt(-afterBal)+"kcal를 당겨쓰게 돼요. 기부는 취소할 수 없어요.", "그래도 기부", doIt);
+  } else {
+    confirmSheet("기부할까요?", fmt(amt)+"kcal를 기부해요. 기부는 취소할 수 없어요.", "기부하기", doIt);
+  }
 }
 var SHOP_ITEMS=[
   {id:"cheat", name:"치팅데이 쿠폰", icon:"🎉", cost:800, desc:"오늘 하루 대출 경고 없이 자유롭게 기록해요. 회식·여행 전에 미리 사두면 좋아요.",
@@ -1212,7 +1233,8 @@ function renderDonate(){
   var bonusEl=$("#don-bonus");
   if(tier){ bonusEl.hidden=false; bonusEl.textContent="+"+tier.bonus+"%p 우대금리 적용 중"; } else { bonusEl.hidden=true; }
   var floor = tier?tier.min:0, ceil = next?next.min:floor;
-  var pct = next ? Math.max(4,Math.min(100,Math.round((total-floor)/(ceil-floor)*100))) : 100;
+  var rawPct = next ? Math.min(100,Math.round((total-floor)/(ceil-floor)*100)) : 100;
+  var pct = total<=0 ? 0 : Math.max(4, rawPct);
   $("#don-progress-fill").style.width=pct+"%";
   $("#don-next").textContent = next ? ("다음 칭호 "+next.title+"까지 "+fmt(next.min-total)+"kcal") : "최고 칭호를 달성했어요 🎉";
 
@@ -1945,7 +1967,7 @@ function importData(input){
     input.value="";
     if(!ok){ toast("올바른 백업 파일이 아니에요"); return; }
     confirmSheet("불러올까요?","지금 데이터를 백업 파일 내용으로 덮어써요. 되돌릴 수 없어요.","불러오기",function(){
-      state=Object.assign(defaultState(),obj); if(!Array.isArray(state.favs)) state.favs=[];
+      state=normalizeState(obj);
       _editEntry=null; save(); render(); toast("불러왔어요");
     });
   };

@@ -183,10 +183,10 @@ input,select{-webkit-user-select:text;user-select:text;}
 .dt-req{font-size:11px;color:var(--ink-soft);}
 .dt-bonus{font-family:var(--mono);font-size:12px;font-weight:800;color:#2f7a4d;flex-shrink:0;background:#e3f4e9;padding:4px 9px;border-radius:999px;}
 .don-tier.got .dt-bonus{background:#2f7a4d;color:#fff;}
-.don-info-box{background:#f7fafd;border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
-.don-info-row{font-size:12px;color:var(--ink-soft);line-height:1.5;}
+.don-info-box{background:#f7fafd;border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}.don-info-row{font-size:12px;color:var(--ink-soft);line-height:1.5;}
 /* 기부 표 (칭호 안내 · 기부 내역 공용) */
 .don-table-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(23,35,58,.05);}
+.don-badge-note{font-size:11px;color:var(--ink-soft);line-height:1.5;margin-top:10px;}
 .don-table-head{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:12px;}
 .don-table{width:100%;border-collapse:collapse;font-size:13px;}
 .don-table th{text-align:left;font-size:11px;font-weight:700;color:var(--ink-soft);padding:0 4px 8px;border-bottom:1px solid var(--line);}
@@ -281,6 +281,16 @@ input,select{-webkit-user-select:text;user-select:text;}
 .credit-badge{display:inline-flex;align-items:center;justify-content:center;line-height:1;font-size:12px;font-weight:800;color:#fff;padding:5px 12px;border-radius:999px;margin:0 0 5px;letter-spacing:-0.01em;}
 .credit-badge.g1{background:#2e7fd6;} .credit-badge.g2{background:#2e9e6b;} .credit-badge.g3{background:#e0a63c;}
 .credit-badge.g4{background:#e8674c;} .credit-badge.g5{background:#d23b3b;}
+.credit-card.tappable{cursor:pointer;position:relative;}
+.credit-card.tappable:active{transform:scale(.98);}
+.card-info-badge{position:absolute;top:9px;right:11px;font-size:14px;color:var(--ink-soft);opacity:.55;line-height:1;pointer-events:none;}
+.cg-badge{display:inline-flex;align-items:center;justify-content:center;line-height:1;font-size:12px;font-weight:800;color:#fff;padding:4px 10px;border-radius:999px;letter-spacing:-0.01em;}
+.cg-badge.g1{background:#2e7fd6;} .cg-badge.g2{background:#2e9e6b;} .cg-badge.g3{background:#e0a63c;}
+.cg-badge.g4{background:#e8674c;} .cg-badge.g5{background:#d23b3b;}
+.don-table .cg-desc{color:var(--ink-soft);font-size:12px;}
+.don-table .cg-name{font-weight:800;}
+.cg-name.g1{color:#2e7fd6;} .cg-name.g2{color:#2e9e6b;} .cg-name.g3{color:#e0a63c;}
+.cg-name.g4{color:#e8674c;} .cg-name.g5{color:#d23b3b;}
 .loan-count{font-size:26px;font-weight:800;margin:4px 0 2px;color:var(--ink);}
 .ch-sub{font-size:11px;color:var(--ink-soft);}
 
@@ -599,7 +609,8 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
     </div>
 
     <div class="credit-row">
-      <div class="credit-card single half-w">
+      <div class="credit-card single half-w tappable" onclick="openCreditGuide()">
+        <span class="card-info-badge">ⓘ</span>
         <div class="credit-half">
           <div class="ch-label">텅장등급</div>
           <div id="credit-grade" class="credit-grade g1">텅장 재벌</div>
@@ -848,6 +859,16 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
               <tbody id="don-tiers"></tbody>
             </table>
           </div>
+          <div class="don-table-card">
+            <div class="don-table-head">📅 이번 달 배지</div>
+            <table class="don-table">
+              <thead>
+                <tr><th>배지</th><th class="ta-r">이번 달 기부</th></tr>
+              </thead>
+              <tbody id="don-badges"></tbody>
+            </table>
+            <div class="don-badge-note">매달 1일에 초기화돼요. 명예 칭호와 달리 그 달의 기부만 계산하고, 혜택 없이 성취 표시만 해요.</div>
+          </div>
           <div class="don-info-box">
             <div class="don-info-row">🎫 누적 기부 5,000kcal 이상이면 연체 탕감권이 열려요</div>
             <div class="don-info-row">📈 칭호에 따라 적금·예금 이자율에 우대금리가 자동으로 붙어요</div>
@@ -947,9 +968,25 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
   </div>
 </div>
 
-<!-- deposit signup modal -->
-<div id="dep-modal" class="modal" hidden onclick="closeIf(event,'dep-modal')">
+<!-- 신용등급 안내 모달 -->
+<div id="credit-guide-modal" class="modal" hidden onclick="closeIf(event,'credit-guide-modal')">
   <div class="sheet">
+    <div class="sheet-head"><h2>텅장등급 안내</h2><button class="sheet-close" aria-label="닫기" onclick="$('#credit-guide-modal').hidden=true">✕</button></div>
+    <p class="sheet-desc">칼로리를 잔고보다 많이 써서 <b>당겨쓰면(대출)</b> 등급이 내려가요. 다 갚으면 1등급으로 완전히 회복돼요.</p>
+    <div class="don-table-card" style="margin-top:4px;">
+      <div class="don-table-head">🏦 등급표</div>
+      <table class="don-table">
+        <thead><tr><th>등급</th><th>별명</th><th class="ta-r">상태</th></tr></thead>
+        <tbody id="credit-guide-tiers"></tbody>
+      </table>
+    </div>
+    <div class="don-info-box">
+      <div class="don-info-row">💳 빚이 하루 목표만큼 늘 때마다 한 등급씩 내려가요</div>
+      <div class="don-info-row">✅ 마이너스 잔고를 다 갚으면 곧바로 1등급으로 회복돼요</div>
+      <div class="don-info-row">🌱 누적 기부 1만kcal마다 등급이 한 단계씩 완화돼요</div>
+    </div>
+  </div>
+</div>
     <div class="sheet-head"><h2>상품 가입</h2><button class="sheet-close" aria-label="닫기" onclick="closeNewDep()">✕</button></div>
     <div class="flt-opts">
       <button id="dk-regular" class="flt-opt" onclick="pickKind('regular')">정기적금</button>
@@ -1318,6 +1355,24 @@ function useShield(){
 }
 function goProduct(id){ activeTab="products"; render(); setTimeout(function(){ var e=$("#dep-card-"+id); if(e){ try{ e.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){}}},80); }
 function goDonate(){ activeTab="products"; prodSub="donate"; render(); }
+function openCreditGuide(){
+  var NICK=["","텅장 재벌","알뜰 부자","평범 텅민","위태 텅민","텅장 파산"];
+  var DESC=["","빚 없이 넉넉해요","조금 당겨썼어요","빚이 쌓이는 중","빚이 위태로워요","빚이 가득 찼어요"];
+  var cur=computeCredit().grade;
+  var wrap=$("#credit-guide-tiers"); wrap.innerHTML="";
+  for(var gd=1; gd<=5; gd++){
+    var tr=el("tr", gd===cur?"got":"locked");
+    var c1=el("td");
+    var cell=el("div","dt-cell");
+    cell.appendChild(el("span","cg-badge g"+gd, gd+"등급"));
+    if(gd===cur) cell.appendChild(el("span","td-check","← 지금"));
+    c1.appendChild(cell); tr.appendChild(c1);
+    tr.appendChild(el("td","cg-name g"+gd,NICK[gd]));
+    tr.appendChild(el("td","cg-desc ta-r",DESC[gd]));
+    wrap.appendChild(tr);
+  }
+  $("#credit-guide-modal").hidden=false;
+}
 function closeDep(id){
   var dp=state.deposits.find(function(d){return d.id===id;}); if(!dp) return;
   confirmSheet("중도 해지할까요?","이자 없이 원금만 텅장으로 돌아와요. 이 적금은 사라져요.","해지",function(){
@@ -1371,6 +1426,24 @@ function renderDonate(){
     tr.appendChild(el("td","td-bonus ta-r","+"+t.bonus+"%p"));
     wrap.appendChild(tr);
   });
+
+  // 이번 달 배지 안내 표
+  var bwrap=$("#don-badges");
+  if(bwrap){
+    bwrap.innerHTML="";
+    MONTH_BADGES.slice().reverse().forEach(function(bg){
+      var got=mAmt>=bg.min;
+      var tr=el("tr",got?"got":"locked");
+      var c1=el("td");
+      var cell=el("div","dt-cell");
+      cell.appendChild(el("span","dt-emoji",bg.icon));
+      cell.appendChild(el("span",null,bg.label));
+      if(got) cell.appendChild(el("span","td-check","✓"));
+      c1.appendChild(cell); tr.appendChild(c1);
+      tr.appendChild(el("td","td-req ta-r",fmt(bg.min)));
+      bwrap.appendChild(tr);
+    });
+  }
 
   // 기부 내역 표 (최근순)
   var histCard=$("#don-history-card"), hbody=$("#don-history-body");

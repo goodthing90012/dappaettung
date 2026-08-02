@@ -496,6 +496,7 @@ input,select{-webkit-user-select:text;user-select:text;}
 
 /* ---------- modals / sheets ---------- */
 .modal{position:fixed;inset:0;background:rgba(23,35,58,.42);display:flex;align-items:flex-end;justify-content:center;z-index:50;}
+body.modal-open{overflow:hidden;}
 #mat-modal{z-index:70;}
 #range-modal{z-index:70;}
 .sheet{width:100%;max-width:520px;background:var(--card);border-radius:20px 20px 0 0;
@@ -987,6 +988,10 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
     </div>
   </div>
 </div>
+
+<!-- deposit signup modal -->
+<div id="dep-modal" class="modal" hidden onclick="closeIf(event,'dep-modal')">
+  <div class="sheet">
     <div class="sheet-head"><h2>상품 가입</h2><button class="sheet-close" aria-label="닫기" onclick="closeNewDep()">✕</button></div>
     <div class="flt-opts">
       <button id="dk-regular" class="flt-opt" onclick="pickKind('regular')">정기적금</button>
@@ -2176,9 +2181,21 @@ function resetAll(){
 }
 
 /* ---- boot ---- */
+function setupModalScrollLock(){
+  var modals=document.querySelectorAll(".modal, .overlay");
+  function sync(){
+    var anyOpen=false;
+    modals.forEach(function(m){ if(!m.hidden) anyOpen=true; });
+    document.body.classList.toggle("modal-open", anyOpen);
+  }
+  var obs=new MutationObserver(sync);
+  modals.forEach(function(m){ obs.observe(m,{attributes:true,attributeFilter:["hidden"]}); });
+  sync();
+}
 function boot(){
   selectedDate=todayKey(); ensureDay(todayKey());
   render();
+  setupModalScrollLock();
   var fresh=false; try{ fresh=!localStorage.getItem(STORE_KEY); }catch(e){}
   if(fresh){ save(); activeTab="settings"; render(); openGoal(); }
   if("serviceWorker" in navigator){ navigator.serviceWorker.register("./sw.js").catch(function(){}); }

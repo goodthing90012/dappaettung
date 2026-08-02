@@ -361,6 +361,7 @@ input,select{-webkit-user-select:text;user-select:text;}
 .pb-balance.neg{color:#ffdca3;}
 .pb-unit{font-size:13px;opacity:.9;}
 .pb-chips{display:flex;gap:8px;margin-top:14px;}
+.pb-period-note{font-size:11px;opacity:.85;margin-top:10px;font-weight:600;}
 .chip{flex:1;background:rgba(255,255,255,.16);border-radius:12px;padding:9px;text-align:center;}
 .chip small{display:block;font-size:10px;opacity:.9;}
 .chip span{display:block;font-family:var(--mono);font-weight:700;font-size:14px;margin-top:2px;font-variant-numeric:tabular-nums;}
@@ -717,6 +718,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <div class="passbook">
         <span id="pb-bal-label" class="pb-label">누적 잔고</span>
         <div class="pb-top"><span id="pb-balance" class="pb-balance">0</span><span class="pb-unit">kcal</span></div>
+        <div id="pb-period-note" class="pb-period-note" hidden></div>
         <div class="pb-chips">
           <div class="chip save"><small>아낀</small><span id="pb-saved">+0</span></div>
           <div class="chip over"><small>초과</small><span id="pb-over">−0</span></div>
@@ -1045,7 +1047,7 @@ function sum(l){ return l.reduce(function(a,e){return a+(Number(e.kcal)||0);},0)
 function dayNet(d){ return ((Number(d.goal)||state.goal)+sum(d.exercise))-sum(d.food); }
 function activeKeys(){ return Object.keys(state.days).filter(function(k){var d=state.days[k]; return d.food.length||d.exercise.length||d.fasted;}).sort(); }
 function balance(){ var r=buildTxns(); return r.length? r[r.length-1].bal : 0; }
-function totals(){ var s=0,o=0,e=0; activeKeys().forEach(function(k){var n=dayNet(state.days[k]); if(n>=0)s+=n; else o+=-n; e+=sum(state.days[k].exercise);}); return {saved:s,over:o,earned:e,balance:balance()}; }
+function totals(startKey){ var s=0,o=0,e=0; activeKeys().forEach(function(k){ if(startKey && k<startKey) return; var n=dayNet(state.days[k]); if(n>=0)s+=n; else o+=-n; e+=sum(state.days[k].exercise);}); return {saved:s,over:o,earned:e,balance:balance()}; }
 function calcMaintenance(p){ var s=p.sex==="female"?-161:5; return Math.round((10*p.weight+6.25*p.height-5*p.age+s)*p.activity); }
 
 function $(s){ return document.querySelector(s); }
@@ -1635,12 +1637,13 @@ function renderLedger(){
   if(ledgerSub==="stack") renderStack(); else renderPassbook();
 }
 function renderPassbook(){
-  var t=totals();
+  var startKey=periodStartKey(_fltPeriod);
+  var t=totals(startKey);
   $("#pb-balance").textContent=signed(t.balance); $("#pb-balance").className="pb-balance "+(t.balance<0?"neg":"");
   $("#pb-bal-label").textContent=t.balance<0?"대출 잔액":"누적 잔고";
   $("#pb-saved").textContent="+"+fmt(t.saved); $("#pb-over").textContent="−"+fmt(t.over); $("#pb-earned").textContent="+"+fmt(t.earned);
+  var pn=$("#pb-period-note"); if(pn){ if(startKey){ pn.hidden=false; pn.textContent="아래 3개 · "+pLabel(_fltPeriod).replace(" 기간","")+" 기준"; } else { pn.hidden=true; } }
   var lb=$("#loan-banner"); if(lb){ if(t.balance<0){ var _cr=computeCredit(); lb.hidden=false; lb.innerHTML="<div class=\"lb-amt\">🔴 현재 대출 "+fmt(-t.balance)+"kcal</div><div class=\"lb-sub\">이번 달 "+_cr.monthLoans+"회 · 누적 "+_cr.loans+"회 당겨썼어요</div>"; } else { lb.hidden=true; } }
-  var startKey=periodStartKey(_fltPeriod);
   $("#flt-summary").textContent=pLabel(_fltPeriod).replace(" 기간","")+" · "+tLabel(_fltType)+" · 최신순";
   $("#flt-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(todayKey())):"전체 기간";
   $("#bal-toggle").className="tgl"+(_showBal?" on":"");

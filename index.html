@@ -78,6 +78,19 @@ input,select{-webkit-user-select:text;user-select:text;}
 .matcell.sel{background:var(--sky);color:#fff;}
 .matcell.sel .cal-num{color:#fff;}
 #mat-grid{margin-bottom:14px;}
+/* 날짜 범위 선택 피커 */
+.rngcell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px;cursor:pointer;position:relative;}
+.rngcell.off{opacity:.28;pointer-events:none;}
+.rngcell.inrange{background:var(--sky-soft);border-radius:0;}
+.rngcell.sel{background:var(--sky);color:#fff;}
+.rngcell.sel .cal-num{color:#fff;}
+.rngcell.sel.start{border-radius:10px 0 0 10px;}
+.rngcell.sel.end{border-radius:0 10px 10px 0;}
+.rngcell.sel.one{border-radius:10px;}
+#range-grid{margin-bottom:14px;}
+.range-hint{text-align:center;font-size:14px;font-weight:700;color:var(--sky-deep);background:var(--sky-soft);border-radius:10px;padding:10px;margin-bottom:12px;}
+.flt-custom-btn{width:100%;box-sizing:border-box;border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;font-weight:700;font-size:14px;padding:12px;border-radius:12px;cursor:pointer;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:6px;}
+.flt-custom-btn.on{border-color:var(--sky);background:var(--sky-soft);color:var(--sky-deep);}
 /* home product summary + calendar event */
 .home-prod{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;}
 .hp-head{font-size:12px;font-weight:800;color:var(--ink-soft);margin-bottom:10px;}
@@ -474,6 +487,7 @@ input,select{-webkit-user-select:text;user-select:text;}
 /* ---------- modals / sheets ---------- */
 .modal{position:fixed;inset:0;background:rgba(23,35,58,.42);display:flex;align-items:flex-end;justify-content:center;z-index:50;}
 #mat-modal{z-index:70;}
+#range-modal{z-index:70;}
 .sheet{width:100%;max-width:520px;background:var(--card);border-radius:20px 20px 0 0;
   padding:18px 16px calc(22px + env(safe-area-inset-bottom));animation:rise .2s ease;max-height:88dvh;overflow-y:auto;}
 @keyframes rise{from{transform:translateY(28px);opacity:.6;}to{transform:none;opacity:1;}}
@@ -916,6 +930,23 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
   </div>
 </div>
 
+<div id="range-modal" class="modal" hidden onclick="closeIf(event,'range-modal')">
+  <div class="sheet">
+    <div class="sheet-head"><h2>날짜 범위 선택</h2><button class="sheet-close" aria-label="닫기" onclick="closeRangePicker()">✕</button></div>
+    <div id="range-hint" class="range-hint">시작일을 선택하세요</div>
+    <div class="cal-head">
+      <button class="cal-nav" onclick="rangeShift(-1)">‹</button>
+      <span id="range-title" class="cal-title">2026년 8월</span>
+      <button class="cal-nav" onclick="rangeShift(1)">›</button>
+    </div>
+    <div id="range-grid" class="cal-grid"></div>
+    <div class="flt-actions">
+      <button class="btn ghost" onclick="resetRange()">다시 선택</button>
+      <button class="btn primary" onclick="confirmRange()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- deposit signup modal -->
 <div id="dep-modal" class="modal" hidden onclick="closeIf(event,'dep-modal')">
   <div class="sheet">
@@ -947,6 +978,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <button id="flt-p-1y" class="flt-opt" onclick="filterPick('p','1y')">1년</button>
       <button id="flt-p-all" class="flt-opt" onclick="filterPick('p','all')">전체</button>
     </div>
+    <button id="flt-p-custom" class="flt-custom-btn" onclick="openRangePicker()">📅 <span id="flt-custom-label">직접 날짜 선택</span></button>
     <div class="flt-title">거래구분</div>
     <div class="flt-opts three">
       <button id="flt-t-all" class="flt-opt" onclick="filterPick('t','all')">전체</button>
@@ -1014,6 +1046,7 @@ var profileShown = false;
 var _editFav = null;
 var _editEntry = null;
 var _fltPeriod="all", _fltType="all", _showBal=true, _tmpP="all", _tmpT="all";
+var _fltStart="", _fltEnd="", _tmpStart="", _tmpEnd="";
 
 function normalizeState(s){
   s=Object.assign(defaultState(),s||{});
@@ -1047,7 +1080,7 @@ function sum(l){ return l.reduce(function(a,e){return a+(Number(e.kcal)||0);},0)
 function dayNet(d){ return ((Number(d.goal)||state.goal)+sum(d.exercise))-sum(d.food); }
 function activeKeys(){ return Object.keys(state.days).filter(function(k){var d=state.days[k]; return d.food.length||d.exercise.length||d.fasted;}).sort(); }
 function balance(){ var r=buildTxns(); return r.length? r[r.length-1].bal : 0; }
-function totals(startKey){ var s=0,o=0,e=0; activeKeys().forEach(function(k){ if(startKey && k<startKey) return; var n=dayNet(state.days[k]); if(n>=0)s+=n; else o+=-n; e+=sum(state.days[k].exercise);}); return {saved:s,over:o,earned:e,balance:balance()}; }
+function totals(startKey,endKey){ var s=0,o=0,e=0; activeKeys().forEach(function(k){ if(startKey && k<startKey) return; if(endKey && k>endKey) return; var n=dayNet(state.days[k]); if(n>=0)s+=n; else o+=-n; e+=sum(state.days[k].exercise);}); return {saved:s,over:o,earned:e,balance:balance()}; }
 function calcMaintenance(p){ var s=p.sex==="female"?-161:5; return Math.round((10*p.weight+6.25*p.height-5*p.age+s)*p.activity); }
 
 function $(s){ return document.querySelector(s); }
@@ -1127,6 +1160,57 @@ function closeMatPicker(){ $("#mat-modal").hidden=true; }
 function matShift(d){ _matM+=d; if(_matM<0){_matM=11;_matY--;} if(_matM>11){_matM=0;_matY++;} renderMatPicker(); }
 function pickMat(k){ _matTmp=k; renderMatPicker(); }
 function confirmMat(){ if(!_matTmp){ toast("날짜를 선택하세요"); return; } _depMaturity=_matTmp; var b=$("#dep-mat"); b.textContent="만기일 "+dotK(_depMaturity)+" ("+weekdayKr(_depMaturity)+")"; b.classList.add("set"); closeMatPicker(); }
+
+/* 날짜 범위 선택 (필터) */
+var _rngY, _rngM, _rngStart="", _rngEnd="";
+function openRangePicker(){
+  var now=new Date();
+  // 기존 커스텀 값이 있으면 그 달로, 없으면 이번 달로
+  if(_fltPeriod==="custom" && _fltStart){ var p=_fltStart.split("-").map(Number); _rngY=p[0]; _rngM=p[1]-1; _rngStart=_fltStart; _rngEnd=_fltEnd||""; }
+  else { _rngY=now.getFullYear(); _rngM=now.getMonth(); _rngStart=""; _rngEnd=""; }
+  renderRangePicker(); $("#range-modal").hidden=false;
+}
+function closeRangePicker(){ $("#range-modal").hidden=true; }
+function rangeShift(d){ _rngM+=d; if(_rngM<0){_rngM=11;_rngY--;} if(_rngM>11){_rngM=0;_rngY++;} renderRangePicker(); }
+function resetRange(){ _rngStart=""; _rngEnd=""; renderRangePicker(); }
+function pickRange(k){
+  if(!_rngStart || _rngEnd){ _rngStart=k; _rngEnd=""; }        // 새 시작
+  else if(k<_rngStart){ _rngEnd=_rngStart; _rngStart=k; }       // 역순 클릭 보정
+  else { _rngEnd=k; }                                            // 종료일
+  renderRangePicker();
+}
+function confirmRange(){
+  if(!_rngStart){ toast("시작일을 선택하세요"); return; }
+  if(!_rngEnd) _rngEnd=_rngStart;                               // 하루만 골랐으면 그 하루
+  _fltStart=_rngStart; _fltEnd=_rngEnd; _tmpP="custom"; _fltPeriod="custom";
+  closeRangePicker(); closeFilter(); render();
+}
+function renderRangePicker(){
+  $("#range-title").textContent=_rngY+"년 "+(_rngM+1)+"월";
+  var hint=$("#range-hint");
+  if(!_rngStart) hint.textContent="시작일을 선택하세요";
+  else if(!_rngEnd) hint.textContent=dotK(_rngStart)+" ~ (종료일 선택)";
+  else hint.textContent=dotK(_rngStart)+" ~ "+dotK(_rngEnd);
+  var grid=$("#range-grid"); grid.innerHTML="";
+  WD.forEach(function(w,i){ grid.appendChild(el("div","cal-wd"+(i===0?" sun":i===6?" sat":""),w)); });
+  var first=new Date(_rngY,_rngM,1).getDay(), days=new Date(_rngY,_rngM+1,0).getDate(), tk=todayKey();
+  for(var i=0;i<first;i++) grid.appendChild(el("div","cal-cell empty"));
+  for(var dd=1;dd<=days;dd++){
+    var k=_rngY+"-"+String(_rngM+1).padStart(2,"0")+"-"+String(dd).padStart(2,"0"), future=(k>tk);
+    var cls="rngcell";
+    if(future) cls+=" off";
+    if(k===_rngStart||k===_rngEnd){
+      cls+=" sel";
+      if(_rngStart&&_rngEnd&&_rngStart!==_rngEnd){ if(k===_rngStart)cls+=" start"; if(k===_rngEnd)cls+=" end"; }
+      else cls+=" one";
+    }
+    else if(_rngStart&&_rngEnd&&k>_rngStart&&k<_rngEnd) cls+=" inrange";
+    var cell=el("div",cls);
+    cell.appendChild(el("div","cal-num",String(dd)));
+    if(!future) cell.setAttribute("onclick","pickRange('"+k+"')");
+    grid.appendChild(cell);
+  }
+}
 function renderMatPicker(){
   $("#mat-title").textContent=_matY+"년 "+(_matM+1)+"월";
   var grid=$("#mat-grid"); grid.innerHTML="";
@@ -1637,21 +1721,22 @@ function renderLedger(){
   if(ledgerSub==="stack") renderStack(); else renderPassbook();
 }
 function renderPassbook(){
-  var startKey=periodStartKey(_fltPeriod);
-  var t=totals(startKey);
+  var startKey=periodStartKey(_fltPeriod), endKey=periodEndKey(_fltPeriod);
+  var t=totals(startKey,_fltPeriod==="custom"?endKey:null);
   $("#pb-balance").textContent=signed(t.balance); $("#pb-balance").className="pb-balance "+(t.balance<0?"neg":"");
   $("#pb-bal-label").textContent=t.balance<0?"대출 잔액":"누적 잔고";
   $("#pb-saved").textContent="+"+fmt(t.saved); $("#pb-over").textContent="−"+fmt(t.over); $("#pb-earned").textContent="+"+fmt(t.earned);
   var pn=$("#pb-period-note"); if(pn){ if(startKey){ pn.hidden=false; pn.textContent="아래 3개 · "+pLabel(_fltPeriod).replace(" 기간","")+" 기준"; } else { pn.hidden=true; } }
   var lb=$("#loan-banner"); if(lb){ if(t.balance<0){ var _cr=computeCredit(); lb.hidden=false; lb.innerHTML="<div class=\"lb-amt\">🔴 현재 대출 "+fmt(-t.balance)+"kcal</div><div class=\"lb-sub\">이번 달 "+_cr.monthLoans+"회 · 누적 "+_cr.loans+"회 당겨썼어요</div>"; } else { lb.hidden=true; } }
   $("#flt-summary").textContent=pLabel(_fltPeriod).replace(" 기간","")+" · "+tLabel(_fltType)+" · 최신순";
-  $("#flt-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(todayKey())):"전체 기간";
+  $("#flt-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(endKey)):"전체 기간";
   $("#bal-toggle").className="tgl"+(_showBal?" on":"");
   var led=$("#ledger"); led.className="ledger"+(_showBal?"":" no-bal");
   var lh=$("#led-head"); if(lh) lh.className="led-head"+(_showBal?"":" no-bal");
   led.innerHTML="";
   var all=buildTxns().filter(function(x){
     if(startKey && x.date<startKey) return false;
+    if(_fltPeriod==="custom" && endKey && x.date>endKey) return false;
     if(_fltType==="in" && x.amt<0) return false;
     if(_fltType==="out" && x.amt>=0) return false;
     return true;
@@ -1678,9 +1763,9 @@ function renderStack(){
   var t=totals(), bal=t.balance;
   $("#stack-bubble").textContent=bal < 0?(fmt(-bal)+"kcal 대출 중이에요"):(fmt(bal)+"kcal 여유 있어요");
   $("#stack-bubble").className="stack-bubble"+(bal < 0?" neg":"");
-  var startKey=periodStartKey(_fltPeriod);
+  var startKey=periodStartKey(_fltPeriod), endKey=periodEndKey(_fltPeriod);
   $("#stk-summary").textContent=pLabel(_fltPeriod).replace(" 기간","")+" · "+tLabel(_fltType)+" · 최신순";
-  $("#stk-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(todayKey())):"전체 기간";
+  $("#stk-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(endKey)):"전체 기간";
   var wrap=$("#stack"); wrap.innerHTML="";
   // 개별 내역을 최신순으로 모음
   var items=[];
@@ -1693,6 +1778,7 @@ function renderStack(){
   if(!items.length){ wrap.appendChild(el("p","empty","아직 쌓인 내역이 없어요.\n달력에서 오늘 먹은 걸 기록해 보세요.")); return; }
   items=items.filter(function(it){
     if(startKey && it.date<startKey) return false;
+    if(_fltPeriod==="custom" && endKey && it.date>endKey) return false;
     if(_fltType==="in" && it.kind==="food") return false;
     if(_fltType==="out" && it.kind!=="food") return false;
     return true;
@@ -1717,6 +1803,7 @@ function renderStack(){
   });
 }
 function periodStartKey(p){
+  if(p==="custom") return _fltStart||null;
   var n=new Date(), y=n.getFullYear(), m=n.getMonth(), d=n.getDate();
   if(p==="month") return keyOf(new Date(y,m,1));
   if(p==="3m") return keyOf(new Date(y,m-3,d));
@@ -1724,7 +1811,8 @@ function periodStartKey(p){
   if(p==="1y") return keyOf(new Date(y-1,m,d));
   return null;
 }
-function pLabel(p){ return {month:"이번달","3m":"3개월","6m":"6개월","1y":"1년",all:"전체 기간"}[p]||"전체 기간"; }
+function periodEndKey(p){ return p==="custom" ? (_fltEnd||todayKey()) : todayKey(); }
+function pLabel(p){ if(p==="custom") return _fltStart? (dotK(_fltStart)+"~"+dotK(_fltEnd||todayKey())) : "직접 선택"; return {month:"이번달","3m":"3개월","6m":"6개월","1y":"1년",all:"전체 기간"}[p]||"전체 기간"; }
 function tLabel(t){ return {all:"전체",in:"입금",out:"출금"}[t]||"전체"; }
 function dotK(k){ return k.replace(/-/g,"."); }
 function depTermDays(dp){ return dp.maturityKey? Math.max(1,daysBetween(dp.startKey,dp.maturityKey)) : 1; }
@@ -1855,13 +1943,16 @@ function weeklyStats(){
 }
 function openFilter(){ _tmpP=_fltPeriod; _tmpT=_fltType; renderFilterSheet(); $("#filter-modal").hidden=false; }
 function closeFilter(){ $("#filter-modal").hidden=true; }
-function filterPick(kind,val){ if(kind==="p")_tmpP=val; else _tmpT=val; renderFilterSheet(); }
+function filterPick(kind,val){ if(kind==="p"){ _tmpP=val; } else _tmpT=val; renderFilterSheet(); }
 function renderFilterSheet(){
   ["month","3m","6m","1y","all"].forEach(function(p){ var e=$("#flt-p-"+p); if(e)e.className="flt-opt"+(_tmpP===p?" on":""); });
   ["all","in","out"].forEach(function(tt){ var e=$("#flt-t-"+tt); if(e)e.className="flt-opt"+(_tmpT===tt?" on":""); });
+  var cb=$("#flt-p-custom"), cl=$("#flt-custom-label");
+  if(cb){ cb.className="flt-custom-btn"+(_tmpP==="custom"?" on":""); }
+  if(cl){ cl.textContent=(_tmpP==="custom"&&_fltStart)?(dotK(_fltStart)+" ~ "+dotK(_fltEnd||_fltStart)):"직접 날짜 선택"; }
 }
 function applyFilter(){ _fltPeriod=_tmpP; _fltType=_tmpT; closeFilter(); render(); }
-function resetFilter(){ _tmpP="all"; _tmpT="all"; renderFilterSheet(); }
+function resetFilter(){ _tmpP="all"; _tmpT="all"; _fltStart=""; _fltEnd=""; renderFilterSheet(); }
 function toggleBal(){ _showBal=!_showBal; render(); }
 
 /* ---- SETTINGS ---- */

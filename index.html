@@ -1346,6 +1346,7 @@ function renderMatPicker(){
 }
 var FIXED_RATE=3.0;
 var DONATION_TIERS=[
+  {min:100000, title:"🦸 텅벤져스", bonus:3.0},
   {min:50000, title:"🌎 텅 히어로", bonus:2.0},
   {min:20000, title:"👑 기부왕 텅", bonus:1.0},
   {min:10000, title:"💙 큰마음 텅", bonus:0.7},
@@ -1521,12 +1522,12 @@ function shareReport(){
   g.fillStyle="#7a879b"; g.font="500 16px monospace"; g.fillText(_repY+"."+String(_repM+1).padStart(2,"0"),cx,140);
 
   function drawRest(){
-    // 순 절약 히어로 (캐릭터 아래)
+    // 절약 히어로 (캐릭터 아래, 겹치지 않도록 간격 확보)
     g.textAlign="center";
-    g.fillStyle="#7a879b"; g.font="500 16px sans-serif"; g.fillText("이번 달 절약",cx,258);
+    g.fillStyle="#7a879b"; g.font="500 16px sans-serif"; g.fillText("이번 달 절약",cx,282);
     var net=s.net;
     g.fillStyle=net<0?"#d23b3b":"#2e7fd6"; g.font="800 52px sans-serif";
-    g.fillText((net>=0?"+":"−")+fmt(Math.abs(net))+" kcal",cx,312);
+    g.fillText((net>=0?"+":"−")+fmt(Math.abs(net))+" kcal",cx,336);
     // 행들
     var rows=[
       ["🎯 목표 달성", s.goalDays+"일 / "+s.recDays+"일", "#17233a"],
@@ -1536,7 +1537,7 @@ function shareReport(){
       ["🌱 기부한 칼로리", fmt(s.donated), "#17233a"],
       ["🔥 최고 연속 기록", s.bestStreak+"일", "#17233a"]
     ];
-    var ry=360, rh=76, rx=80, rw=W-160;
+    var ry=366, rh=76, rx=80, rw=W-160;
     g.fillStyle="#f4f9ff"; rr(rx,ry,rw,rh*rows.length+20,18); g.fill();
     rows.forEach(function(r,i){
       var y=ry+30+i*rh;

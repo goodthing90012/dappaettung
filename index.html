@@ -127,6 +127,8 @@ input,select{-webkit-user-select:text;user-select:text;}
 .rep-actions{display:flex;gap:8px;margin-top:16px;}
 .rep-actions .btn{flex:1;}
 .hp-head{font-size:12px;font-weight:800;color:var(--ink-soft);margin-bottom:10px;}
+.hp-head.tappable{display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.hp-head-arrow{font-size:14px;color:var(--ink-soft);}
 .hp-list{display:flex;flex-direction:column;gap:8px;}
 .hp-row{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;}
 .hp-row:active{background:var(--sky-soft);}
@@ -687,7 +689,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
     </div>
 
     <div id="home-products" class="home-prod" hidden>
-      <div class="hp-head">내 상품</div>
+      <div class="hp-head tappable" onclick="goMyProducts()">내 상품 <span class="hp-head-arrow">›</span></div>
       <div id="hp-list" class="hp-list"></div>
     </div>
 
@@ -1437,7 +1439,8 @@ function useShield(){
     state.items.shield--; state.streakShieldDates.push(y); save(); render(); toast("스트릭을 지켰어요 🛡️");
   });
 }
-function goProduct(id){ activeTab="products"; render(); setTimeout(function(){ var e=$("#dep-card-"+id); if(e){ try{ e.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){}}},80); }
+function goProduct(id){ activeTab="products"; prodSub="my"; render(); setTimeout(function(){ var e=$("#dep-card-"+id); if(e){ try{ e.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){}}},80); }
+function goMyProducts(){ activeTab="products"; prodSub="my"; render(); }
 function goDonate(){ activeTab="products"; prodSub="donate"; render(); }
 
 /* ---- 월간 리포트 ---- */

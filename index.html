@@ -278,19 +278,12 @@ input,select{-webkit-user-select:text;user-select:text;}
 .streak-best{font-size:12px;color:var(--ink-soft);flex-shrink:0;}
 .week-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;}
 
-/* ---------- total assets ---------- */
-.assets-card{background:linear-gradient(160deg,#eaf3fc,#f7fbff);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;text-align:center;}
+/* ---------- deposit/savings summary ---------- */
+.assets-card{background:linear-gradient(160deg,#eaf3fc,#f7fbff);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;text-align:center;}
 .assets-head{font-size:12px;font-weight:800;color:var(--ink-soft);}
-.assets-total{font-family:var(--mono);font-size:32px;font-weight:800;color:var(--sky-deep);letter-spacing:-0.02em;margin:6px 0 14px;}
+.assets-total{font-family:var(--mono);font-size:32px;font-weight:800;color:var(--sky-deep);letter-spacing:-0.02em;margin:6px 0 4px;}
 .assets-unit{font-size:15px;font-weight:700;margin-left:3px;}
-.assets-breakdown{display:flex;background:rgba(255,255,255,.6);border-radius:12px;overflow:hidden;}
-.assets-item{flex:1;padding:10px 6px;display:flex;flex-direction:column;gap:4px;}
-.assets-item+.assets-item{border-left:1px solid rgba(46,127,214,.15);}
-.ai-label{font-size:11px;color:var(--ink-soft);font-weight:700;}
-.ai-val{font-family:var(--mono);font-size:15px;font-weight:800;color:var(--ink);}
-.ai-val.neg{color:var(--minus);}
-.assets-total.neg{color:var(--minus);}
-.assets-note{font-size:11px;color:var(--ink-soft);margin-top:10px;}
+.assets-note{font-size:11px;color:var(--ink-soft);margin-top:6px;}
 .week-head{font-size:12px;font-weight:800;color:var(--ink-soft);margin-bottom:12px;}
 .week-stats{display:flex;}
 .week-stats .ws{flex:1;text-align:center;}
@@ -665,22 +658,6 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <button id="hero-add" class="hero-btn" onclick="selectDate(todayKey())">＋ 오늘 기록하기</button>
     </div>
 
-    <div class="assets-card">
-      <div class="assets-head">총 자산</div>
-      <div id="assets-total" class="assets-total">0<span class="assets-unit">kcal</span></div>
-      <div class="assets-breakdown">
-        <div class="assets-item">
-          <span class="ai-label">💰 당좌잔고</span>
-          <span id="assets-cash" class="ai-val">0</span>
-        </div>
-        <div class="assets-item">
-          <span class="ai-label">🏦 예금·적금</span>
-          <span id="assets-dep" class="ai-val">0</span>
-        </div>
-      </div>
-      <div id="assets-interest-note" class="assets-note"></div>
-    </div>
-
     <div class="credit-row">
       <div class="credit-card single half-w tappable" onclick="openCreditGuide()">
         <span class="card-info-badge">ⓘ</span>
@@ -864,6 +841,11 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <button id="psub-donate" class="psub" onclick="goProdSub('donate')">🌱 기부</button>
     </div>
     <div id="prod-my">
+      <div class="assets-card">
+        <div class="assets-head">🏦 예금·적금</div>
+        <div id="dep-summary-total" class="assets-total">0<span class="assets-unit">kcal</span></div>
+        <div id="dep-summary-note" class="assets-note"></div>
+      </div>
       <div class="prod-intro">
         <h2 class="prod-title">칼로리 예·적금</h2>
         <p class="prod-desc">아낀 칼로리를 묶어두면 만기에 이자를 붙여 돌려줘요. 그만큼 나중에 더 먹을 수 있어요. 만기일과 이자율은 직접 정해요.</p>
@@ -1752,6 +1734,12 @@ function toggleDonHelp(){ var b=$("#don-help-body"), t=$("#don-help-toggle"); if
 function renderMyProducts(){
   ["all","regular","free","deposit"].forEach(function(k){ var e=$("#pc-"+k); if(e)e.className="pchip"+(_prodCat===k?" on":""); });
   ["active","matured"].forEach(function(k){ var e=$("#ps-"+k); if(e)e.className="pchip"+(_prodStatus===k?" on":""); });
+  var actDeps=(state.deposits||[]).filter(function(dp){return dp.status==="active";});
+  var depTotal=actDeps.reduce(function(s,dp){return s+depPrincipal(dp);},0);
+  var depIntTotal=actDeps.reduce(function(s,dp){return s+depInterest(dp);},0);
+  var dst=$("#dep-summary-total"); if(dst) dst.innerHTML=fmt(depTotal)+"<span class=\"assets-unit\">kcal</span>";
+  var dsn=$("#dep-summary-note");
+  if(dsn) dsn.textContent = depIntTotal>0 ? ("+예상 이자 "+fmt(depIntTotal)+"kcal (만기 시 합산) · 상품 "+actDeps.length+"개") : (actDeps.length ? ("상품 "+actDeps.length+"개") : "가입한 상품이 없어요");
   var wrap=$("#dep-list"); wrap.innerHTML="";
   var all=(state.deposits||[]).filter(function(d){return d.status==="active";});
   if(!all.length){ wrap.appendChild(el("p","empty","가입한 상품이 없어요.\n적금·예금을 만들어 칼로리를 묶어보세요.")); return; }
@@ -1843,15 +1831,6 @@ function renderHome(){
   $("#hero-caption").textContent=left<0?"오늘 텅장을 넘겼어요":"오늘 더 먹을 수 있어요";
   $("#hero-goal").textContent="+"+fmt(d.goal||state.goal); $("#hero-eaten").textContent="−"+fmt(consumed); $("#hero-burned").textContent="+"+fmt(burned);
   var bal=balance(); $("#hero-bal").textContent=signed(bal); $("#hero-bal").className=bal<0?"neg":""; $("#hero-bal-label").textContent=bal<0?"대출 중 (누적)":"모아둔 칼로리 (누적)";
-  var actDeps=(state.deposits||[]).filter(function(dp){return dp.status==="active";});
-  var depTotal=actDeps.reduce(function(s,dp){return s+depPrincipal(dp);},0);
-  var depIntTotal=actDeps.reduce(function(s,dp){return s+depInterest(dp);},0);
-  var totalAssets=bal+depTotal;
-  $("#assets-total").innerHTML=signed(totalAssets)+"<span class=\"assets-unit\">kcal</span>";
-  $("#assets-total").className="assets-total"+(totalAssets<0?" neg":"");
-  $("#assets-cash").textContent=signed(bal); $("#assets-cash").className="ai-val"+(bal<0?" neg":"");
-  $("#assets-dep").textContent=fmt(depTotal);
-  $("#assets-interest-note").textContent = depIntTotal>0 ? ("+예상 이자 "+fmt(depIntTotal)+"kcal (만기 시 합산)") : "";
   var cr=computeCredit();
   var NICK=["","텅장 재벌","알뜰 부자","평범 텅민","위태 텅민","텅장 파산"];
   $("#credit-grade").textContent=NICK[cr.grade]; $("#credit-grade").className="credit-grade g"+cr.grade;

@@ -277,6 +277,20 @@ input,select{-webkit-user-select:text;user-select:text;}
 .streak-text{font-weight:700;font-size:14px;color:var(--ink);flex:1;}
 .streak-best{font-size:12px;color:var(--ink-soft);flex-shrink:0;}
 .week-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;}
+
+/* ---------- total assets ---------- */
+.assets-card{background:linear-gradient(160deg,#eaf3fc,#f7fbff);border:1px solid var(--line);border-radius:18px;padding:16px;margin-top:12px;text-align:center;}
+.assets-head{font-size:12px;font-weight:800;color:var(--ink-soft);}
+.assets-total{font-family:var(--mono);font-size:32px;font-weight:800;color:var(--sky-deep);letter-spacing:-0.02em;margin:6px 0 14px;}
+.assets-unit{font-size:15px;font-weight:700;margin-left:3px;}
+.assets-breakdown{display:flex;background:rgba(255,255,255,.6);border-radius:12px;overflow:hidden;}
+.assets-item{flex:1;padding:10px 6px;display:flex;flex-direction:column;gap:4px;}
+.assets-item+.assets-item{border-left:1px solid rgba(46,127,214,.15);}
+.ai-label{font-size:11px;color:var(--ink-soft);font-weight:700;}
+.ai-val{font-family:var(--mono);font-size:15px;font-weight:800;color:var(--ink);}
+.ai-val.neg{color:var(--minus);}
+.assets-total.neg{color:var(--minus);}
+.assets-note{font-size:11px;color:var(--ink-soft);margin-top:10px;}
 .week-head{font-size:12px;font-weight:800;color:var(--ink-soft);margin-bottom:12px;}
 .week-stats{display:flex;}
 .week-stats .ws{flex:1;text-align:center;}
@@ -434,6 +448,9 @@ input,select{-webkit-user-select:text;user-select:text;}
 .flt-chip{border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;
   font-size:12px;font-weight:700;padding:6px 10px;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;}
 .flt-line2{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:10px;font-size:12px;color:var(--ink-soft);}
+.flt-search-row{position:relative;margin-top:8px;}
+.txn-search-in{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:11px;padding:9px 34px 9px 12px;font-family:inherit;font-size:13px;background:#f7fafd;color:var(--ink);}
+.txn-search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:6px;}
 .tgl{position:relative;width:42px;height:24px;border:none;border-radius:999px;background:#cbd5e1;cursor:pointer;padding:0;transition:background .15s;}
 .tgl.on{background:var(--sky);}
 .tgl .knob{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;}
@@ -648,6 +665,22 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <button id="hero-add" class="hero-btn" onclick="selectDate(todayKey())">＋ 오늘 기록하기</button>
     </div>
 
+    <div class="assets-card">
+      <div class="assets-head">총 자산</div>
+      <div id="assets-total" class="assets-total">0<span class="assets-unit">kcal</span></div>
+      <div class="assets-breakdown">
+        <div class="assets-item">
+          <span class="ai-label">💰 당좌잔고</span>
+          <span id="assets-cash" class="ai-val">0</span>
+        </div>
+        <div class="assets-item">
+          <span class="ai-label">🏦 예금·적금</span>
+          <span id="assets-dep" class="ai-val">0</span>
+        </div>
+      </div>
+      <div id="assets-interest-note" class="assets-note"></div>
+    </div>
+
     <div class="credit-row">
       <div class="credit-card single half-w tappable" onclick="openCreditGuide()">
         <span class="card-info-badge">ⓘ</span>
@@ -784,6 +817,10 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
           <span id="stk-range" class="flt-range">전체 기간</span>
           <button class="flt-chip" onclick="openFilter()"><span id="stk-summary">전체 · 전체 · 최신순</span> ⚙</button>
         </div>
+        <div class="flt-search-row">
+          <input id="stk-search" class="txn-search-in" type="text" placeholder="🔍 내용 검색 (예: 치킨, 편의점)" oninput="onTxnSearch(this.value)" />
+          <button id="stk-search-clear" class="txn-search-clear" onclick="clearTxnSearch('stk-search')" hidden>✕</button>
+        </div>
       </div>
       <div id="stack" class="stack"></div>
     </div>
@@ -804,6 +841,10 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <div class="flt-line1">
           <span id="flt-range" class="flt-range">전체 기간</span>
           <button class="flt-chip" onclick="openFilter()"><span id="flt-summary">전체 · 전체 · 최신순</span> ⚙</button>
+        </div>
+        <div class="flt-search-row">
+          <input id="pb-search" class="txn-search-in" type="text" placeholder="🔍 내용 검색 (예: 치킨, 편의점)" oninput="onTxnSearch(this.value)" />
+          <button id="pb-search-clear" class="txn-search-clear" onclick="clearTxnSearch('pb-search')" hidden>✕</button>
         </div>
         <div class="flt-line2">
           <span>잔액 표시</span>
@@ -1172,6 +1213,16 @@ var profileShown = false;
 var _editFav = null;
 var _editEntry = null;
 var _fltPeriod="all", _fltType="all", _showBal=true, _tmpP="all", _tmpT="all";
+var _txnSearch="";
+function onTxnSearch(v){
+  _txnSearch=v;
+  if(ledgerSub==="stack") renderStack(); else renderPassbook();
+}
+function clearTxnSearch(id){
+  _txnSearch="";
+  var el2=$("#"+id); if(el2) el2.value="";
+  if(ledgerSub==="stack") renderStack(); else renderPassbook();
+}
 var _fltStart="", _fltEnd="", _tmpStart="", _tmpEnd="";
 
 function normalizeState(s){
@@ -1792,6 +1843,15 @@ function renderHome(){
   $("#hero-caption").textContent=left<0?"오늘 텅장을 넘겼어요":"오늘 더 먹을 수 있어요";
   $("#hero-goal").textContent="+"+fmt(d.goal||state.goal); $("#hero-eaten").textContent="−"+fmt(consumed); $("#hero-burned").textContent="+"+fmt(burned);
   var bal=balance(); $("#hero-bal").textContent=signed(bal); $("#hero-bal").className=bal<0?"neg":""; $("#hero-bal-label").textContent=bal<0?"대출 중 (누적)":"모아둔 칼로리 (누적)";
+  var actDeps=(state.deposits||[]).filter(function(dp){return dp.status==="active";});
+  var depTotal=actDeps.reduce(function(s,dp){return s+depPrincipal(dp);},0);
+  var depIntTotal=actDeps.reduce(function(s,dp){return s+depInterest(dp);},0);
+  var totalAssets=bal+depTotal;
+  $("#assets-total").innerHTML=signed(totalAssets)+"<span class=\"assets-unit\">kcal</span>";
+  $("#assets-total").className="assets-total"+(totalAssets<0?" neg":"");
+  $("#assets-cash").textContent=signed(bal); $("#assets-cash").className="ai-val"+(bal<0?" neg":"");
+  $("#assets-dep").textContent=fmt(depTotal);
+  $("#assets-interest-note").textContent = depIntTotal>0 ? ("+예상 이자 "+fmt(depIntTotal)+"kcal (만기 시 합산)") : "";
   var cr=computeCredit();
   var NICK=["","텅장 재벌","알뜰 부자","평범 텅민","위태 텅민","텅장 파산"];
   $("#credit-grade").textContent=NICK[cr.grade]; $("#credit-grade").className="credit-grade g"+cr.grade;
@@ -2126,18 +2186,22 @@ function renderPassbook(){
   var lb=$("#loan-banner"); if(lb){ if(t.balance<0){ var _cr=computeCredit(); lb.hidden=false; lb.innerHTML="<div class=\"lb-amt\">🔴 현재 대출 "+fmt(-t.balance)+"kcal</div><div class=\"lb-sub\">이번 달 "+_cr.monthLoans+"회 · 누적 "+_cr.loans+"회 당겨썼어요</div>"; } else { lb.hidden=true; } }
   $("#flt-summary").textContent=pLabel(_fltPeriod).replace(" 기간","")+" · "+tLabel(_fltType)+" · 최신순";
   $("#flt-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(endKey)):"전체 기간";
+  var pbs=$("#pb-search"); if(pbs && pbs.value!==_txnSearch) pbs.value=_txnSearch;
+  var pbsc=$("#pb-search-clear"); if(pbsc) pbsc.hidden=!_txnSearch;
   $("#bal-toggle").className="tgl"+(_showBal?" on":"");
   var led=$("#ledger"); led.className="ledger"+(_showBal?"":" no-bal");
   var lh=$("#led-head"); if(lh) lh.className="led-head"+(_showBal?"":" no-bal");
   led.innerHTML="";
+  var q=(_txnSearch||"").trim().toLowerCase();
   var all=buildTxns().filter(function(x){
     if(startKey && x.date<startKey) return false;
     if(_fltPeriod==="custom" && endKey && x.date>endKey) return false;
     if(_fltType==="in" && x.amt<0) return false;
     if(_fltType==="out" && x.amt>=0) return false;
+    if(q && (x.memo||"").toLowerCase().indexOf(q)<0) return false;
     return true;
   });
-  if(!all.length){ led.appendChild(el("p","empty","조건에 맞는 내역이 없어요.")); return; }
+  if(!all.length){ led.appendChild(el("p","empty",q?"검색 결과가 없어요.":"조건에 맞는 내역이 없어요.")); return; }
   var byDate={}, dates=[];
   all.forEach(function(x){ if(!byDate[x.date]){byDate[x.date]=[];dates.push(x.date);} byDate[x.date].push(x); });
   dates.sort().reverse();
@@ -2162,6 +2226,8 @@ function renderStack(){
   var startKey=periodStartKey(_fltPeriod), endKey=periodEndKey(_fltPeriod);
   $("#stk-summary").textContent=pLabel(_fltPeriod).replace(" 기간","")+" · "+tLabel(_fltType)+" · 최신순";
   $("#stk-range").textContent=startKey?(dotK(startKey)+" ~ "+dotK(endKey)):"전체 기간";
+  var stks=$("#stk-search"); if(stks && stks.value!==_txnSearch) stks.value=_txnSearch;
+  var stksc=$("#stk-search-clear"); if(stksc) stksc.hidden=!_txnSearch;
   var wrap=$("#stack"); wrap.innerHTML="";
   // 개별 내역을 최신순으로 모음
   var items=[];
@@ -2172,14 +2238,16 @@ function renderStack(){
     if(d.fasted && !d.food.length){ items.push({date:k,name:"안 먹음 (단식)",kcal:(d.goal||state.goal),kind:"fast",id:k+"-fast"}); }
   });
   if(!items.length){ wrap.appendChild(el("p","empty","아직 쌓인 내역이 없어요.\n달력에서 오늘 먹은 걸 기록해 보세요.")); return; }
+  var q2=(_txnSearch||"").trim().toLowerCase();
   items=items.filter(function(it){
     if(startKey && it.date<startKey) return false;
     if(_fltPeriod==="custom" && endKey && it.date>endKey) return false;
     if(_fltType==="in" && it.kind==="food") return false;
     if(_fltType==="out" && it.kind!=="food") return false;
+    if(q2 && (it.name||"").toLowerCase().indexOf(q2)<0) return false;
     return true;
   });
-  if(!items.length){ wrap.appendChild(el("p","empty","조건에 맞는 내역이 없어요.")); return; }
+  if(!items.length){ wrap.appendChild(el("p","empty",q2?"검색 결과가 없어요.":"조건에 맞는 내역이 없어요.")); return; }
   items.sort(function(a,b){ return a.id < b.id ? 1 : a.id > b.id ? -1 : 0; }); // 최신 먼저
   var peak=1; items.forEach(function(it){ peak=Math.max(peak,it.kcal); });
   var lastDate=null;

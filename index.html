@@ -553,7 +553,9 @@ input,select{-webkit-user-select:text;user-select:text;}
 .tag-total-kcal{font-family:var(--mono);font-size:19px;font-weight:800;color:var(--ink);}
 .tag-total-label{font-size:11px;color:var(--ink-soft);margin-top:2px;}
 .tag-rank-list{display:flex;flex-direction:column;gap:0;}
-.tag-rank-row{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--line);}
+.tag-rank-row{display:flex;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px;}
+.tag-rank-row.sel{background:var(--sky-soft);}
+.tag-rank-row:active{opacity:.7;}
 .tag-rank-row:last-child{border-bottom:none;}
 .tag-swatch{width:11px;height:11px;border-radius:3px;flex-shrink:0;}
 .tag-rank-name{flex:1;font-size:14px;font-weight:700;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -704,8 +706,12 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
 
 /* ---------- toast ---------- */
 .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:rgba(23,35,58,.92);color:#fff;
-  padding:11px 18px;border-radius:22px;font-size:13px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;}
+  padding:11px 18px;border-radius:22px;font-size:13px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s;
+  display:flex;align-items:center;gap:10px;max-width:86vw;white-space:nowrap;}
 .toast.show{opacity:1;}
+.toast-action-btn{pointer-events:auto;background:none;border:none;color:#7cc0ff;font-weight:800;font-size:13px;
+  font-family:inherit;cursor:pointer;padding:2px 2px;flex-shrink:0;}
+.toast-action-btn:active{opacity:.6;}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;}}
 
@@ -926,7 +932,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <div id="tag-donut" class="tag-donut"></div>
         <div class="tag-donut-center">
           <div id="tag-total-kcal" class="tag-total-kcal">0</div>
-          <div class="tag-total-label">kcal</div>
+          <div id="tag-total-label" class="tag-total-label">kcal</div>
         </div>
       </div>
       <div id="tag-rank-list" class="tag-rank-list"></div>
@@ -1321,7 +1327,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
   </div>
 </div>
 
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast"><span id="toast-msg"></span><button id="toast-action" class="toast-action-btn" hidden></button></div>
 
 <script>
 "use strict";
@@ -1392,7 +1398,19 @@ function el(t,c,x){ var n=document.createElement(t); if(c)n.className=c; if(x!=n
 function fmt(n){ return Math.round(n).toLocaleString("en-US"); }
 function signed(n){ return (n>0?"+":n<0?"−":"")+fmt(Math.abs(n)); }
 
-function toast(msg){ var t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(_toastTimer); _toastTimer=setTimeout(function(){t.classList.remove("show");},1800); }
+function toast(msg, actionLabel, actionFn){
+  var t=$("#toast"), msgEl=$("#toast-msg"), btn=$("#toast-action");
+  msgEl.textContent=msg;
+  if(actionLabel && actionFn){
+    btn.textContent=actionLabel; btn.hidden=false;
+    btn.onclick=function(){ actionFn(); t.classList.remove("show"); clearTimeout(_toastTimer); };
+  } else {
+    btn.hidden=true; btn.onclick=null;
+  }
+  t.classList.add("show");
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(function(){ t.classList.remove("show"); },(actionLabel&&actionFn)?4000:1800);
+}
 
 function confirmSheet(title,body,yesLabel,fn){ $("#confirm-title").textContent=title; $("#confirm-body").textContent=body; $("#confirm-yes").textContent=yesLabel; _confirmAction=fn; $("#confirm-overlay").hidden=false; }
 function confirmYes(){ $("#confirm-overlay").hidden=true; var f=_confirmAction; _confirmAction=null; if(f)f(); }
@@ -2138,8 +2156,15 @@ function renderInput(){
 function removeEntryTag(k,id){
   var d=state.days[k]; if(!d) return;
   var it=(d.food||[]).find(function(x){return x.id===id;}); if(!it) return;
+  var prevTag=it.tag;
   delete it.tag;
-  save(); refreshTagOptions(); render(); toast("태그를 해제했어요");
+  save(); refreshTagOptions(); render();
+  toast("태그를 해제했어요", "실행취소", function(){
+    var d2=state.days[k]; if(!d2) return;
+    var it2=(d2.food||[]).find(function(x){return x.id===id;}); if(!it2) return;
+    it2.tag=prevTag;
+    save(); refreshTagOptions(); render();
+  });
 }
 function delEntry(k,kind,id){
   var d=state.days[k]; if(!d)return; var arr=kind==="food"?d.food:d.exercise;
@@ -2440,7 +2465,6 @@ function renderStack(){
     pill.setAttribute("onclick","selectDate('"+it.date+"')");
     var main=el("div","pill-main");
     main.appendChild(el("span","pill-label",it.name||(it.kind==="food"?"먹은 것":"운동")));
-    if(it.tag){ var stackBadge=el("span","entry-tag-badge"); stackBadge.appendChild(el("span","entry-tag-badge-text",it.tag)); main.appendChild(stackBadge); }
     pill.appendChild(main);
     pill.appendChild(el("span","pill-val",(it.kind==="food"?"−":"+")+fmt(it.kcal)));
     wrap.appendChild(pill);
@@ -2492,6 +2516,8 @@ function tagMonthShift(d){
   if(_tagY>n.getFullYear() || (_tagY===n.getFullYear() && _tagM>n.getMonth())){ _tagM=n.getMonth(); _tagY=n.getFullYear(); }
   renderTagAnalysis();
 }
+var _tagAnalysisData=null;
+var _selectedTagSeg=null;
 function renderTagAnalysis(){
   if(_tagY===null){ var n0=new Date(); _tagY=n0.getFullYear(); _tagM=n0.getMonth(); }
   var ym=_tagY+"-"+String(_tagM+1).padStart(2,"0");
@@ -2502,36 +2528,68 @@ function renderTagAnalysis(){
 
   var list=computeTagTotals(ym);
   var total=list.reduce(function(s,t){return s+t.kcal;},0);
+  _selectedTagSeg=null;
 
   var donut=$("#tag-donut"), rankList=$("#tag-rank-list");
   rankList.innerHTML="";
   if(!list.length || total<=0){
+    _tagAnalysisData=null;
     donut.style.background="#eef3f9";
     $("#tag-total-kcal").textContent="0";
+    $("#tag-total-label").textContent="kcal";
     rankList.appendChild(el("p","empty","이 달에 태그가 달린 기록이 없어요."));
     return;
   }
-  $("#tag-total-kcal").textContent=fmt(total);
-  var segs=[], acc=0, colorIdx=0;
+  var colorIdx=0;
   list.forEach(function(t){
     t.color = (t.tag==="미분류") ? UNTAG_COLOR : TAG_PALETTE[colorIdx++ % TAG_PALETTE.length];
   });
+  var acc=0;
   list.forEach(function(t){
     var pct = total>0 ? (t.kcal/total*100) : 0;
-    segs.push(t.color+" "+acc.toFixed(2)+"% "+(acc+pct).toFixed(2)+"%");
-    acc+=pct;
+    t.segStart=acc; t.segEnd=acc+pct; acc+=pct;
   });
-  donut.style.background="conic-gradient("+segs.join(",")+")";
+  _tagAnalysisData={list:list, total:total};
+  drawTagDonut();
   list.forEach(function(t){
     var pct = total>0 ? Math.round(t.kcal/total*100) : 0;
-    var row=el("div","tag-rank-row");
+    var row=el("div","tag-rank-row"); row.setAttribute("data-tag",t.tag);
     var sw=el("span","tag-swatch"); sw.style.background=t.color; row.appendChild(sw);
     var nm=el("span","tag-rank-name",t.tag); row.appendChild(nm);
     row.appendChild(el("span","tag-rank-count",t.count+"건"));
     row.appendChild(el("span","tag-rank-pct",pct+"%"));
     row.appendChild(el("span","tag-rank-kcal",fmt(t.kcal)));
+    row.addEventListener("click",function(){ toggleTagSegSelect(t.tag); });
     rankList.appendChild(row);
   });
+}
+function drawTagDonut(){
+  var d=_tagAnalysisData; if(!d) return;
+  var donut=$("#tag-donut"); if(!donut) return;
+  var segs=d.list.map(function(t){
+    var isSel = !_selectedTagSeg || _selectedTagSeg===t.tag;
+    var c = isSel ? t.color : "#e3e8ef";
+    return c+" "+t.segStart.toFixed(2)+"% "+t.segEnd.toFixed(2)+"%";
+  });
+  donut.style.background="conic-gradient("+segs.join(",")+")";
+  var kcalEl=$("#tag-total-kcal"), labelEl=$("#tag-total-label");
+  if(_selectedTagSeg){
+    var sel=d.list.find(function(t){return t.tag===_selectedTagSeg;});
+    if(sel){
+      var pct=d.total>0?Math.round(sel.kcal/d.total*100):0;
+      kcalEl.textContent=fmt(sel.kcal);
+      labelEl.textContent=sel.tag+" · "+pct+"%";
+    }
+  } else {
+    kcalEl.textContent=fmt(d.total);
+    labelEl.textContent="kcal";
+  }
+  var rows=document.querySelectorAll(".tag-rank-row");
+  rows.forEach(function(r){ r.classList.toggle("sel", r.getAttribute("data-tag")===_selectedTagSeg); });
+}
+function toggleTagSegSelect(tag){
+  _selectedTagSeg = (_selectedTagSeg===tag) ? null : tag;
+  drawTagDonut();
 }
 function periodStartKey(p){
   if(p==="custom") return _fltStart||null;

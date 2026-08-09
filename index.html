@@ -643,6 +643,11 @@ body.modal-open{overflow:hidden;}
 .entry-kcal{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;}
 .entry.food .entry-kcal{color:var(--minus);}
 .entry.ex .entry-kcal{color:var(--ex);}
+.entry-tag-badge{font-size:10px;color:var(--sky-deep);background:var(--sky-soft);padding:3px 7px;border-radius:6px;
+  flex-shrink:0;max-width:110px;font-weight:700;display:inline-flex;align-items:center;gap:4px;}
+.entry-tag-badge-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.entry-tag-x{flex-shrink:0;opacity:.6;font-size:9px;line-height:1;padding:2px;cursor:pointer;}
+.entry-tag-x:active{opacity:1;}
 .entry-del{border:none;background:none;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:4px 6px;}
 
 .slice-row{display:flex;align-items:center;gap:6px;margin:-2px 0 8px;padding:2px 0;font-size:13px;color:var(--ink-soft);font-weight:600;flex-wrap:wrap;}
@@ -2069,7 +2074,7 @@ function renderInput(){
   $("#in-left").textContent=signed(left); $("#in-left").className="day-num "+(left < 0?"neg":"");
   $("#in-sub").textContent="목표 "+fmt(d.goal||state.goal)+" · 먹음 "+fmt(consumed)+" · 운동 "+fmt(burned);
   var list=$("#in-list"); list.innerHTML="";
-  var rows=d.food.map(function(e){return {id:e.id,name:e.name,kcal:e.kcal,kind:"food"};}).concat(d.exercise.map(function(e){return {id:e.id,name:e.name,kcal:e.kcal,kind:"ex"};}));
+  var rows=d.food.map(function(e){return {id:e.id,name:e.name,kcal:e.kcal,kind:"food",tag:e.tag};}).concat(d.exercise.map(function(e){return {id:e.id,name:e.name,kcal:e.kcal,kind:"ex"};}));
   if(!rows.length){ list.appendChild(el("p","empty","이 날 기록이 아직 없어요. 위에서 추가해요.")); return; }
   rows.forEach(function(r){
     if(_editEntry && _editEntry.id===r.id){
@@ -2116,10 +2121,25 @@ function renderInput(){
     }
     var row=el("div","entry tap "+r.kind); row.setAttribute("onclick","editEntry('"+k+"','"+r.kind+"','"+r.id+"')");
     row.appendChild(el("span","entry-name",r.name||(r.kind==="food"?"먹은 것":"운동")));
+    if(r.kind==="food" && r.tag){
+      var tagBadge=el("span","entry-tag-badge");
+      tagBadge.appendChild(el("span","entry-tag-badge-text",r.tag));
+      var tagX=el("span","entry-tag-x","✕");
+      tagX.setAttribute("aria-label","태그 해제");
+      (function(dateKey,id){ tagX.addEventListener("click",function(ev){ ev.stopPropagation(); removeEntryTag(dateKey,id); }); })(k,r.id);
+      tagBadge.appendChild(tagX);
+      row.appendChild(tagBadge);
+    }
     row.appendChild(el("span","entry-kcal",(r.kind==="food"?"−":"+")+fmt(r.kcal)));
     var del=el("button","entry-del","✕"); del.setAttribute("aria-label","삭제"); del.setAttribute("onclick","event.stopPropagation();delEntry('"+k+"','"+r.kind+"','"+r.id+"')");
     row.appendChild(del); list.appendChild(row);
   });
+}
+function removeEntryTag(k,id){
+  var d=state.days[k]; if(!d) return;
+  var it=(d.food||[]).find(function(x){return x.id===id;}); if(!it) return;
+  delete it.tag;
+  save(); refreshTagOptions(); render(); toast("태그를 해제했어요");
 }
 function delEntry(k,kind,id){
   var d=state.days[k]; if(!d)return; var arr=kind==="food"?d.food:d.exercise;
@@ -2392,7 +2412,7 @@ function renderStack(){
   var items=[];
   activeKeys().forEach(function(k){
     var d=state.days[k];
-    d.food.forEach(function(e){ items.push({date:k,name:e.name,kcal:e.kcal,kind:"food",id:e.id}); });
+    d.food.forEach(function(e){ items.push({date:k,name:e.name,kcal:e.kcal,kind:"food",id:e.id,tag:e.tag}); });
     d.exercise.forEach(function(e){ items.push({date:k,name:e.name,kcal:e.kcal,kind:"ex",id:e.id}); });
     if(d.fasted && !d.food.length){ items.push({date:k,name:"안 먹음 (단식)",kcal:(d.goal||state.goal),kind:"fast",id:k+"-fast"}); }
   });
@@ -2420,6 +2440,7 @@ function renderStack(){
     pill.setAttribute("onclick","selectDate('"+it.date+"')");
     var main=el("div","pill-main");
     main.appendChild(el("span","pill-label",it.name||(it.kind==="food"?"먹은 것":"운동")));
+    if(it.tag){ var stackBadge=el("span","entry-tag-badge"); stackBadge.appendChild(el("span","entry-tag-badge-text",it.tag)); main.appendChild(stackBadge); }
     pill.appendChild(main);
     pill.appendChild(el("span","pill-val",(it.kind==="food"?"−":"+")+fmt(it.kcal)));
     wrap.appendChild(pill);

@@ -567,6 +567,17 @@ input,select{-webkit-user-select:text;user-select:text;}
 .list-more-btn{background:#fff;border:1px dashed var(--line);border-radius:10px;padding:10px;margin-top:8px;
   font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;width:100%;}
 .list-more-btn:active{opacity:.6;}
+.bulk-tag-list{display:flex;flex-direction:column;gap:0;margin-top:10px;}
+.bulk-tag-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);cursor:pointer;}
+.bulk-tag-row:last-child{border-bottom:none;}
+.bulk-tag-check{width:18px;height:18px;flex-shrink:0;accent-color:var(--sky-deep);}
+.bulk-tag-date{font-size:11px;color:var(--ink-soft);width:32px;flex-shrink:0;}
+.bulk-tag-name{flex:1;font-size:13px;font-weight:700;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bulk-tag-kcal{font-family:var(--mono);font-size:12px;color:var(--ink-soft);flex-shrink:0;width:50px;text-align:right;}
+.bulk-tag-curtag{font-size:10px;color:var(--ink-soft);background:#eef3f9;padding:3px 7px;border-radius:6px;flex-shrink:0;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bulk-tag-bar{display:flex;align-items:center;gap:8px;margin-top:12px;}
+.bulk-tag-count{font-size:11px;color:var(--ink-soft);flex-shrink:0;white-space:nowrap;}
+.bulk-tag-bar .in-name{flex:1;min-width:0;margin:0;}
 .tag-manage-row{display:flex;align-items:center;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line);}
 .tag-manage-row:last-child{border-bottom:none;}
 .tag-manage-name{flex:1;font-size:14px;font-weight:700;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -1065,7 +1076,18 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
     </div>
 
     <div class="set-group">
-      <div class="set-head">태그</div>
+      <div class="set-head">태그 일괄 적용</div>
+      <input id="bulk-tag-search" class="in-name" type="text" placeholder="내역 검색 (이름)" oninput="renderBulkTagList()" />
+      <div id="bulk-tag-list" class="bulk-tag-list"></div>
+      <div class="bulk-tag-bar">
+        <span id="bulk-tag-count" class="bulk-tag-count">0건 선택</span>
+        <input id="bulk-tag-value" class="in-name" type="text" list="tag-options" placeholder="적용할 태그" />
+        <button class="btn primary" onclick="applyBulkTag()">적용</button>
+      </div>
+    </div>
+
+    <div class="set-group">
+      <div class="set-head">태그 이름 변경 · 병합</div>
       <input id="tag-manage-search" class="in-name" type="text" placeholder="태그 검색" oninput="renderTagManageList()" hidden />
       <div id="tag-manage-list" class="tag-manage-list"></div>
     </div>
@@ -2577,6 +2599,77 @@ function renderNotifDot(){
   var hasUnread=(state.notifications||[]).some(function(n){return !n.read;});
   dot.hidden=!hasUnread;
 }
+/* ---------- bulk tag apply ---------- */
+var _bulkTagSelected={};
+var _bulkTagExpanded=false;
+function getAllFoodEntriesFlat(){
+  var out=[];
+  Object.keys(state.days).sort().reverse().forEach(function(k){
+    var d=state.days[k];
+    (d.food||[]).forEach(function(it){ out.push({date:k, id:it.id, name:it.name, kcal:it.kcal, tag:it.tag||""}); });
+  });
+  return out;
+}
+function renderBulkTagList(){
+  var wrap=$("#bulk-tag-list"); if(!wrap) return;
+  var srch=$("#bulk-tag-search");
+  var q=((srch&&srch.value)||"").trim().toLowerCase();
+  var all=getAllFoodEntriesFlat();
+  var list = q ? all.filter(function(it){ return (it.name||"").toLowerCase().indexOf(q)>=0; }) : all;
+  wrap.innerHTML="";
+  if(!list.length){ wrap.appendChild(el("p","empty", q?"검색 결과가 없어요.":"기록된 내역이 없어요.")); updateBulkTagCount(); return; }
+  var CAP=20, showAll = q!=="" || _bulkTagExpanded || list.length<=CAP;
+  var shown = showAll ? list : list.slice(0,CAP);
+  shown.forEach(function(it){
+    var key=it.date+"|"+it.id;
+    var row=document.createElement("label"); row.className="bulk-tag-row";
+    var cb=document.createElement("input"); cb.type="checkbox"; cb.className="bulk-tag-check"; cb.checked=!!_bulkTagSelected[key];
+    cb.addEventListener("change",function(){ if(cb.checked) _bulkTagSelected[key]=it; else delete _bulkTagSelected[key]; updateBulkTagCount(); });
+    row.appendChild(cb);
+    row.appendChild(el("span","bulk-tag-date",shortDate(it.date)));
+    row.appendChild(el("span","bulk-tag-name",it.name||"(이름없음)"));
+    row.appendChild(el("span","bulk-tag-kcal",fmt(it.kcal)));
+    row.appendChild(el("span","bulk-tag-curtag",it.tag||"미분류"));
+    wrap.appendChild(row);
+  });
+  if(!showAll){
+    var more=el("button","list-more-btn","더보기 +"+(list.length-CAP));
+    more.setAttribute("onclick","toggleBulkTagExpand()");
+    wrap.appendChild(more);
+  } else if(q==="" && list.length>CAP){
+    var less=el("button","list-more-btn","접기 ▴");
+    less.setAttribute("onclick","toggleBulkTagExpand()");
+    wrap.appendChild(less);
+  }
+  updateBulkTagCount();
+}
+function toggleBulkTagExpand(){ _bulkTagExpanded=!_bulkTagExpanded; renderBulkTagList(); }
+function updateBulkTagCount(){
+  var c=$("#bulk-tag-count"); if(!c) return;
+  c.textContent=Object.keys(_bulkTagSelected).length+"건 선택";
+}
+function applyBulkTag(){
+  var keys=Object.keys(_bulkTagSelected);
+  if(!keys.length){ toast("적용할 항목을 선택하세요"); return; }
+  var valEl=$("#bulk-tag-value"); var val=(valEl&&valEl.value||"").trim();
+  if(!val){ toast("적용할 태그를 입력하세요"); return; }
+  confirmSheet("일괄 태그 적용할까요?", keys.length+"건에 '"+val+"' 태그를 적용해요.", "적용", function(){
+    keys.forEach(function(key){
+      var ref=_bulkTagSelected[key];
+      var d=state.days[ref.date]; if(!d) return;
+      var it=(d.food||[]).find(function(x){return x.id===ref.id;});
+      if(it) it.tag=val;
+    });
+    save();
+    _bulkTagSelected={};
+    if(valEl) valEl.value="";
+    refreshTagOptions();
+    renderBulkTagList();
+    renderTagManageList();
+    if(activeTab==="ledger" && ledgerSub==="tags") renderTagAnalysis();
+    toast(keys.length+"건에 '"+val+"' 태그를 적용했어요");
+  });
+}
 var _renamingTag=null;
 var _tagManageExpanded=false;
 function renderTagManageList(){
@@ -2783,6 +2876,7 @@ function renderSettings(){
     $("#profile-eye").textContent="보기";
   }
   renderFavSettings();
+  renderBulkTagList();
   renderTagManageList();
 }
 function toggleProfile(){ profileShown=!profileShown; renderSettings(); }

@@ -563,22 +563,23 @@ input,select{-webkit-user-select:text;user-select:text;}
 .tag-manage-link{display:block;width:100%;background:none;border:1px dashed var(--line);border-radius:12px;padding:11px;
   font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;margin-top:16px;}
 .tag-manage-link:active{opacity:.6;}
-.tag-manage-list{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);}
-.list-more-btn{background:#fff;border:1px dashed var(--line);border-radius:10px;padding:10px;margin-top:8px;
-  font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;width:100%;}
+.tag-manage-list{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-bottom:8px;}
+.list-more-btn{background:#fff;border:1px dashed var(--line);border-radius:10px;padding:10px;margin:8px 14px 0;
+  font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;width:calc(100% - 28px);}
 .list-more-btn:active{opacity:.6;}
+.in-name-pad{display:block;box-sizing:border-box;width:calc(100% - 28px);margin:0 14px 10px;}
 .bulk-tag-list{display:flex;flex-direction:column;gap:0;margin-top:10px;}
-.bulk-tag-row{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);cursor:pointer;}
+.bulk-tag-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer;}
 .bulk-tag-row:last-child{border-bottom:none;}
 .bulk-tag-check{width:18px;height:18px;flex-shrink:0;accent-color:var(--sky-deep);}
 .bulk-tag-date{font-size:11px;color:var(--ink-soft);width:32px;flex-shrink:0;}
 .bulk-tag-name{flex:1;font-size:13px;font-weight:700;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .bulk-tag-kcal{font-family:var(--mono);font-size:12px;color:var(--ink-soft);flex-shrink:0;width:50px;text-align:right;}
 .bulk-tag-curtag{font-size:10px;color:var(--ink-soft);background:#eef3f9;padding:3px 7px;border-radius:6px;flex-shrink:0;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.bulk-tag-bar{display:flex;align-items:center;gap:8px;margin-top:12px;}
+.bulk-tag-bar{display:flex;align-items:center;gap:8px;margin:12px 14px 14px;}
 .bulk-tag-count{font-size:11px;color:var(--ink-soft);flex-shrink:0;white-space:nowrap;}
 .bulk-tag-bar .in-name{flex:1;min-width:0;margin:0;}
-.tag-manage-row{display:flex;align-items:center;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line);}
+.tag-manage-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);}
 .tag-manage-row:last-child{border-bottom:none;}
 .tag-manage-name{flex:1;font-size:14px;font-weight:700;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tag-manage-meta{font-size:11px;color:var(--ink-soft);flex-shrink:0;}
@@ -1047,72 +1048,84 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
   </section>
 
   <section id="tab-settings" class="content" hidden>
-    <div class="set-group">
-      <div class="set-head">일반</div>
-      <div class="set-row" id="open-goal" onclick="openGoal()">
-        <div><div class="set-k">하루 목표 칼로리</div><div class="set-v" id="set-goal">2,000 kcal</div></div>
-        <span class="set-arrow">›</span>
+    <div class="subtabs">
+      <button id="set-sub-info" class="subtab active" onclick="setSubGo('info')">내 정보</button>
+      <button id="set-sub-fav" class="subtab" onclick="setSubGo('fav')">즐겨찾기</button>
+      <button id="set-sub-tag" class="subtab" onclick="setSubGo('tag')">태그</button>
+    </div>
+
+    <div id="set-view-info" class="subview">
+      <div class="set-group">
+        <div class="set-head">일반</div>
+        <div class="set-row" id="open-goal" onclick="openGoal()">
+          <div><div class="set-k">하루 목표 칼로리</div><div class="set-v" id="set-goal">2,000 kcal</div></div>
+          <span class="set-arrow">›</span>
+        </div>
+        <div class="set-row static">
+          <div><div class="set-k">내 프로필</div><div class="set-v" id="set-profile">미설정</div></div>
+          <button id="profile-eye" class="eye-btn" onclick="toggleProfile()">보기</button>
+        </div>
       </div>
-      <div class="set-row static">
-        <div><div class="set-k">내 프로필</div><div class="set-v" id="set-profile">미설정</div></div>
-        <button id="profile-eye" class="eye-btn" onclick="toggleProfile()">보기</button>
+
+      <div class="set-group">
+        <div class="set-head">백업</div>
+        <div class="set-row" onclick="backupData()">
+          <div class="set-k">백업 (내보내기)</div>
+          <span class="set-arrow">›</span>
+        </div>
+        <label class="set-row backup-import">
+          <div class="set-k">불러오기 (가져오기)</div>
+          <input type="file" accept="application/json,.json" onchange="importData(this)" hidden />
+          <span class="set-arrow">›</span>
+        </label>
+      </div>
+
+      <div class="set-group">
+        <div class="set-row danger" id="reset-all" onclick="resetAll()">
+          <div class="set-k">전체 초기화</div>
+          <span class="set-arrow">›</span>
+        </div>
+      </div>
+      <div class="set-about">
+        다뺐텅 · 칼로리 텅장 v3<br>텅 유니버스
       </div>
     </div>
 
-    <div class="set-group">
-      <div class="set-head">즐겨찾기</div>
-      <div class="fav-add">
-        <select id="fav-kind" class="fav-kind">
-          <option value="food">먹음</option>
-          <option value="exercise">운동</option>
-        </select>
-        <input id="fav-name" class="in-name" type="text" placeholder="이름 (예: 아메리카노)" />
-        <input id="fav-kcal" class="in-kcal" type="number" inputmode="numeric" placeholder="kcal" onkeydown="if(event.key==='Enter')addFav()" />
-        <button id="fav-submit" class="btn primary" onclick="addFav()">등록</button>
-      </div>
-      <button id="fav-cancel" class="fav-cancel" hidden onclick="cancelEditFav()">수정 취소</button>
-      <input id="fav-search" class="in-name" type="text" placeholder="즐겨찾기 검색" oninput="renderFavSettings()" hidden />
-      <div id="fav-list" class="fav-list"></div>
-    </div>
-
-    <div class="set-group">
-      <div class="set-head">태그 일괄 적용</div>
-      <input id="bulk-tag-search" class="in-name" type="text" placeholder="내역 검색 (이름)" oninput="renderBulkTagList()" />
-      <div id="bulk-tag-list" class="bulk-tag-list"></div>
-      <div class="bulk-tag-bar">
-        <span id="bulk-tag-count" class="bulk-tag-count">0건 선택</span>
-        <input id="bulk-tag-value" class="in-name" type="text" list="tag-options" placeholder="적용할 태그" />
-        <button class="btn primary" onclick="applyBulkTag()">적용</button>
+    <div id="set-view-fav" class="subview" hidden>
+      <div class="set-group">
+        <div class="set-head">즐겨찾기</div>
+        <div class="fav-add">
+          <select id="fav-kind" class="fav-kind">
+            <option value="food">먹음</option>
+            <option value="exercise">운동</option>
+          </select>
+          <input id="fav-name" class="in-name" type="text" placeholder="이름 (예: 아메리카노)" />
+          <input id="fav-kcal" class="in-kcal" type="number" inputmode="numeric" placeholder="kcal" onkeydown="if(event.key==='Enter')addFav()" />
+          <button id="fav-submit" class="btn primary" onclick="addFav()">등록</button>
+        </div>
+        <button id="fav-cancel" class="fav-cancel" hidden onclick="cancelEditFav()">수정 취소</button>
+        <input id="fav-search" class="in-name in-name-pad" type="text" placeholder="즐겨찾기 검색" oninput="renderFavSettings()" hidden />
+        <div id="fav-list" class="fav-list"></div>
       </div>
     </div>
 
-    <div class="set-group">
-      <div class="set-head">태그 이름 변경 · 병합</div>
-      <input id="tag-manage-search" class="in-name" type="text" placeholder="태그 검색" oninput="renderTagManageList()" hidden />
-      <div id="tag-manage-list" class="tag-manage-list"></div>
-    </div>
-
-    <div class="set-group">
-      <div class="set-head">데이터</div>
-      <div class="set-row" onclick="backupData()">
-        <div class="set-k">백업 (내보내기)</div>
-        <span class="set-arrow">›</span>
+    <div id="set-view-tag" class="subview" hidden>
+      <div class="set-group">
+        <div class="set-head">태그 일괄 적용</div>
+        <input id="bulk-tag-search" class="in-name in-name-pad" type="text" placeholder="내역 검색 (이름)" oninput="renderBulkTagList()" />
+        <div id="bulk-tag-list" class="bulk-tag-list"></div>
+        <div class="bulk-tag-bar">
+          <span id="bulk-tag-count" class="bulk-tag-count">0건 선택</span>
+          <input id="bulk-tag-value" class="in-name" type="text" list="tag-options" placeholder="적용할 태그" />
+          <button class="btn primary" onclick="applyBulkTag()">적용</button>
+        </div>
       </div>
-      <label class="set-row backup-import">
-        <div class="set-k">불러오기 (가져오기)</div>
-        <input type="file" accept="application/json,.json" onchange="importData(this)" hidden />
-        <span class="set-arrow">›</span>
-      </label>
-    </div>
 
-    <div class="set-group">
-      <div class="set-row danger" id="reset-all" onclick="resetAll()">
-        <div class="set-k">전체 초기화</div>
-        <span class="set-arrow">›</span>
+      <div class="set-group">
+        <div class="set-head">태그 이름 변경 · 병합</div>
+        <input id="tag-manage-search" class="in-name in-name-pad" type="text" placeholder="태그 검색" oninput="renderTagManageList()" hidden />
+        <div id="tag-manage-list" class="tag-manage-list"></div>
       </div>
-    </div>
-    <div class="set-about">
-      다뺐텅 · 칼로리 텅장 v3<br>텅 유니버스
     </div>
   </section>
 
@@ -2864,7 +2877,15 @@ function resetFilter(){ _tmpP="all"; _tmpT="all"; _fltStart=""; _fltEnd=""; rend
 function toggleBal(){ _showBal=!_showBal; render(); }
 
 /* ---- SETTINGS ---- */
+var settingsSub="info";
+function setSubGo(s){ settingsSub=s; renderSettings(); }
 function renderSettings(){
+  $("#set-sub-info").classList.toggle("active",settingsSub==="info");
+  $("#set-sub-fav").classList.toggle("active",settingsSub==="fav");
+  $("#set-sub-tag").classList.toggle("active",settingsSub==="tag");
+  $("#set-view-info").hidden=settingsSub!=="info";
+  $("#set-view-fav").hidden=settingsSub!=="fav";
+  $("#set-view-tag").hidden=settingsSub!=="tag";
   $("#set-goal").textContent=fmt(state.goal)+" kcal";
   var p=state.profile;
   if(!p){ $("#set-profile").textContent="미설정"; $("#profile-eye").textContent=""; }
@@ -2875,9 +2896,8 @@ function renderSettings(){
     $("#set-profile").textContent="••••••••";
     $("#profile-eye").textContent="보기";
   }
-  renderFavSettings();
-  renderBulkTagList();
-  renderTagManageList();
+  if(settingsSub==="fav") renderFavSettings();
+  else if(settingsSub==="tag"){ renderBulkTagList(); renderTagManageList(); }
 }
 function toggleProfile(){ profileShown=!profileShown; renderSettings(); }
 

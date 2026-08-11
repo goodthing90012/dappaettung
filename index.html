@@ -936,7 +936,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         </div>
       </div>
       <div id="tag-rank-list" class="tag-rank-list"></div>
-      <button class="tag-manage-link" onclick="go('settings')">🏷️ 태그 정리는 설정 탭에서 →</button>
+      <button class="tag-manage-link" onclick="settingsSub='tag'; go('settings')">🏷️ 태그 정리는 설정 탭에서 →</button>
     </div>
   </section>
 
@@ -1997,6 +1997,7 @@ function renderShop(){
 function go(tab){ activeTab=tab; render(); }
 function subGo(s){ ledgerSub=s; render(); }
 function goToFavAdd(){
+  settingsSub="fav";
   go("settings");
   setTimeout(function(){ var e=$("#fav-name"); if(e){ try{ e.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} e.focus(); } }, 60);
 }

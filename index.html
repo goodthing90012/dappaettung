@@ -1450,7 +1450,13 @@ function createDep(){
   var boosted=false;
   if((state.items.rateboost||0)>0){ rate+=2; state.items.rateboost--; boosted=true; }
   var dp={ id:id, name:name, kind:_depKind, rate:rate, startKey:todayKey(), maturityKey:_depMaturity, status:"active" };
-  function done(msg){ state.deposits.push(dp); save(); closeNewDep(); render(); toast(boosted?(msg+" (금리 우대권 사용, +2%p)"):msg); }
+  function done(msg){
+    state.deposits.push(dp); save(); closeNewDep(); render();
+    toast(boosted?(msg+" (금리 우대권 사용, +2%p)"):msg);
+    if(dp.kind==="deposit"){
+      addNotification({icon:"💰", title:"통장 입금", body:(dp.name||"예금")+"에 "+fmt(dp.amount)+"kcal를 입금했어요."});
+    }
+  }
   if(_depKind==="regular"){
     var daily=Math.round(Number($("#dep-daily").value)); if(!daily||daily<=0){ toast("하루 납입 칼로리를 입력하세요"); return; } dp.daily=daily;
     // 총 납입액이 지금 잔고보다 커도 가입 가능: 매일 자동이체 시점에 그날 잔고 부족하면 그날만 건너뛰어요.
@@ -1463,7 +1469,10 @@ function createDep(){
 function freeDeposit(id){
   var dp=state.deposits.find(function(d){return d.id===id;}); if(!dp) return;
   var amt=Math.round(Number($("#dep-in-"+id).value)); if(!amt||amt<=0){ toast("입금할 칼로리를 입력하세요"); return; }
-  function doIt(){ dp.txns.push({date:todayKey(),amt:amt}); save(); render(); toast(fmt(amt)+"kcal 입금했어요"); }
+  function doIt(){
+    dp.txns.push({date:todayKey(),amt:amt}); save(); render(); toast(fmt(amt)+"kcal 입금했어요");
+    addNotification({icon:"💰", title:"통장 입금", body:(dp.name||"자유적금")+"에 "+fmt(amt)+"kcal를 입금했어요."});
+  }
   warnIfLoan(balance()-amt, "이 입금으로 텅장 잔고를 넘어서 "+fmt(amt-balance())+"kcal를 당겨쓰게 돼요.", doIt);
 }
 function claimDep(id){
@@ -1832,8 +1841,11 @@ function openCreditGuide(){
 function closeDep(id){
   var dp=state.deposits.find(function(d){return d.id===id;}); if(!dp) return;
   confirmSheet("중도 해지할까요?","이자 없이 원금만 텅장으로 돌아와요. 이 적금은 사라져요.","해지",function(){
+    var principal=depPrincipal(dp);
+    var kindLabel=dp.kind==="regular"?"정기적금":dp.kind==="deposit"?"예금":"자유적금";
     var i=state.deposits.findIndex(function(d){return d.id===id;}); if(i>-1) state.deposits.splice(i,1);
     save(); render(); toast("해지했어요");
+    addNotification({icon:"✂️", title:kindLabel+" 해지", body:(dp.name||kindLabel)+"을 중도 해지했어요. 원금 "+fmt(principal)+"kcal가 텅장으로 돌아왔어요."});
   });
 }
 function renderProducts(){

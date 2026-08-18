@@ -2465,7 +2465,10 @@ function renderStack(){
     return true;
   });
   if(!items.length){ wrap.appendChild(el("p","empty",q2?"검색 결과가 없어요.":"조건에 맞는 내역이 없어요.")); return; }
-  items.sort(function(a,b){ return a.id < b.id ? 1 : a.id > b.id ? -1 : 0; }); // 최신 먼저
+  items.sort(function(a,b){
+    if(a.date!==b.date) return a.date<b.date ? 1 : -1; // 날짜 내림차순(최신 날짜 먼저)
+    return a.id < b.id ? 1 : a.id > b.id ? -1 : 0; // 같은 날짜 안에서는 입력순(최신 먼저)
+  });
   var peak=1; items.forEach(function(it){ peak=Math.max(peak,it.kcal); });
   var lastDate=null;
   items.forEach(function(it){

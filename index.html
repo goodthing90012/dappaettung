@@ -546,6 +546,7 @@ input,select{-webkit-user-select:text;user-select:text;}
 
 /* ---------- tag analysis ---------- */
 .tag-nav{display:flex;align-items:center;justify-content:center;gap:16px;margin:16px 0 20px;font-weight:800;font-size:15px;color:var(--ink);}
+.tag-view-toggle{margin:0 0 18px;}
 .tag-chart-wrap{position:relative;width:180px;height:180px;margin:0 auto 22px;}
 .tag-donut{width:180px;height:180px;border-radius:50%;background:#eef3f9;transition:background .3s;}
 .tag-donut-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:110px;height:110px;border-radius:50%;
@@ -928,6 +929,10 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <span id="tag-month-title">2026년 8월</span>
         <button id="tag-next" class="cal-nav" aria-label="다음 달" onclick="tagMonthShift(1)">›</button>
       </div>
+      <div id="tag-view-toggle" class="subtabs tag-view-toggle" hidden>
+        <button id="tag-view-indiv" class="subtab active" onclick="setTagViewMode(false)">개별 태그</button>
+        <button id="tag-view-group" class="subtab" onclick="setTagViewMode(true)">그룹으로 보기</button>
+      </div>
       <div class="tag-chart-wrap">
         <div id="tag-donut" class="tag-donut"></div>
         <div class="tag-donut-center">
@@ -1137,6 +1142,17 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <input id="tag-manage-search" class="in-name in-name-pad" type="text" placeholder="태그 검색" oninput="renderTagManageList()" hidden />
         <div id="tag-manage-list" class="tag-manage-list"></div>
       </div>
+
+      <div class="set-group">
+        <div class="set-head">태그 그룹 (분석에서 합쳐보기)</div>
+        <div id="tag-group-select-list" class="bulk-tag-list"></div>
+        <div class="bulk-tag-bar">
+          <span id="tag-group-sel-count" class="bulk-tag-count">0개 선택</span>
+          <input id="tag-group-name" class="in-name" type="text" placeholder="그룹 이름 (예: 점심)" />
+          <button class="btn primary" onclick="createTagGroup()">묶기</button>
+        </div>
+        <div id="tag-group-list" class="tag-manage-list"></div>
+      </div>
     </div>
   </section>
 
@@ -1335,7 +1351,7 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
 
 var STORE_KEY = "dameoktung.v1", DEFAULT_GOAL = 2000;
 var STEP_KCAL = 0.04; // 대략 1걸음당 소모 칼로리 (약 1,000걸음 ≈ 40kcal)
-function defaultState(){ return { goal:DEFAULT_GOAL, profile:null, days:{}, favs:[], savingsGoal:0, deposits:[], items:{cheat:0,relief:0,rateboost:0,shield:0}, shopTxns:[], cheatDates:[], streakShieldDates:[], purchaseLog:[], donatedTotal:0, donations:[], notifications:[], _goalNotifyInit:false }; }
+function defaultState(){ return { goal:DEFAULT_GOAL, profile:null, days:{}, favs:[], savingsGoal:0, deposits:[], items:{cheat:0,relief:0,rateboost:0,shield:0}, shopTxns:[], cheatDates:[], streakShieldDates:[], purchaseLog:[], donatedTotal:0, donations:[], notifications:[], _goalNotifyInit:false, tagGroups:[] }; }
 var state = load();
 var _now = new Date(), calYear = _now.getFullYear(), calMonth = _now.getMonth();
 var selectedDate = null, activeTab = "home", ledgerSub = "stack", inputOpen = false, _confirmAction = null, _toastTimer = null;
@@ -1370,6 +1386,7 @@ function normalizeState(s){
   if(typeof s.donatedTotal!=="number")s.donatedTotal=0;
   if(!Array.isArray(s.donations))s.donations=[];
   if(!Array.isArray(s.notifications))s.notifications=[];
+  if(!Array.isArray(s.tagGroups))s.tagGroups=[];
   if(typeof s._goalNotifyInit!=="boolean")s._goalNotifyInit=false;
   if(!s.days||typeof s.days!=="object")s.days={};
   return s;
@@ -2510,13 +2527,15 @@ function refreshTagOptions(){
   dl.innerHTML="";
   tags.forEach(function(t){ var o=document.createElement("option"); o.value=t; dl.appendChild(o); });
 }
-function computeTagTotals(ym){
+function findTagGroup(tag){ return (state.tagGroups||[]).find(function(g){ return g.tags.indexOf(tag)>=0; }); }
+function computeTagTotals(ym, grouped){
   var totals={};
   Object.keys(state.days).forEach(function(k){
     if(k.slice(0,7)!==ym) return;
     var d=state.days[k];
     (d.food||[]).forEach(function(it){
       var tag=(it.tag||"").trim()||"미분류";
+      if(grouped){ var g=findTagGroup(tag); if(g) tag=g.name; }
       if(!totals[tag]) totals[tag]={kcal:0,count:0};
       totals[tag].kcal+=it.kcal; totals[tag].count++;
     });
@@ -2534,6 +2553,8 @@ function tagMonthShift(d){
 }
 var _tagAnalysisData=null;
 var _selectedTagSeg=null;
+var _tagViewGrouped=false;
+function setTagViewMode(g){ _tagViewGrouped=g; renderTagAnalysis(); }
 function renderTagAnalysis(){
   if(_tagY===null){ var n0=new Date(); _tagY=n0.getFullYear(); _tagM=n0.getMonth(); }
   var ym=_tagY+"-"+String(_tagM+1).padStart(2,"0");
@@ -2542,7 +2563,17 @@ function renderTagAnalysis(){
   var isCurMonth=(_tagY===n.getFullYear() && _tagM===n.getMonth());
   var nextBtn=$("#tag-next"); if(nextBtn) nextBtn.style.opacity=isCurMonth?.3:1;
 
-  var list=computeTagTotals(ym);
+  var hasGroups=(state.tagGroups||[]).length>0;
+  var toggleBar=$("#tag-view-toggle");
+  if(toggleBar){
+    toggleBar.hidden=!hasGroups;
+    if(!hasGroups) _tagViewGrouped=false;
+    var b1=$("#tag-view-indiv"), b2=$("#tag-view-group");
+    if(b1) b1.classList.toggle("active",!_tagViewGrouped);
+    if(b2) b2.classList.toggle("active",_tagViewGrouped);
+  }
+
+  var list=computeTagTotals(ym, _tagViewGrouped);
   var total=list.reduce(function(s,t){return s+t.kcal;},0);
   _selectedTagSeg=null;
 
@@ -2778,6 +2809,64 @@ function applyBulkTag(){
     toast(keys.length+"건에 '"+val+"' 태그를 적용했어요");
   });
 }
+/* ---------- tag groups ---------- */
+var _tagGroupSelected={};
+function renderTagGroupSelectList(){
+  var wrap=$("#tag-group-select-list"); if(!wrap) return;
+  var all=getAllTagStats().filter(function(t){ return t.tag!=="미분류"; });
+  wrap.innerHTML="";
+  if(!all.length){ wrap.appendChild(el("p","empty","묶을 태그가 없어요.")); updateTagGroupSelCount(); return; }
+  all.forEach(function(t){
+    var row=document.createElement("label"); row.className="bulk-tag-row";
+    var cb=document.createElement("input"); cb.type="checkbox"; cb.className="bulk-tag-check"; cb.checked=!!_tagGroupSelected[t.tag];
+    cb.addEventListener("change",function(){ if(cb.checked) _tagGroupSelected[t.tag]=true; else delete _tagGroupSelected[t.tag]; updateTagGroupSelCount(); });
+    row.appendChild(cb);
+    row.appendChild(el("span","bulk-tag-name",t.tag));
+    row.appendChild(el("span","bulk-tag-kcal",fmt(t.kcal)));
+    var g=findTagGroup(t.tag);
+    if(g) row.appendChild(el("span","entry-tag-badge",g.name));
+    wrap.appendChild(row);
+  });
+  updateTagGroupSelCount();
+}
+function updateTagGroupSelCount(){
+  var c=$("#tag-group-sel-count"); if(c) c.textContent=Object.keys(_tagGroupSelected).length+"개 선택";
+}
+function createTagGroup(){
+  var tags=Object.keys(_tagGroupSelected);
+  if(tags.length<2){ toast("2개 이상 선택하세요"); return; }
+  var nameEl=$("#tag-group-name"); var name=(nameEl&&nameEl.value||"").trim();
+  if(!name){ toast("그룹 이름을 입력하세요"); return; }
+  state.tagGroups=(state.tagGroups||[]).map(function(g){
+    return {id:g.id, name:g.name, tags:g.tags.filter(function(t){ return tags.indexOf(t)<0; })};
+  }).filter(function(g){ return g.tags.length>0; });
+  state.tagGroups.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7), name:name, tags:tags});
+  save();
+  _tagGroupSelected={}; if(nameEl) nameEl.value="";
+  renderTagGroupSelectList(); renderTagGroupList();
+  if(activeTab==="ledger" && ledgerSub==="tags") renderTagAnalysis();
+  toast("'"+name+"' 그룹을 만들었어요");
+}
+function renderTagGroupList(){
+  var wrap=$("#tag-group-list"); if(!wrap) return;
+  wrap.innerHTML="";
+  var groups=state.tagGroups||[];
+  if(!groups.length){ wrap.appendChild(el("p","empty","만든 그룹이 없어요.")); return; }
+  groups.forEach(function(g){
+    var row=el("div","tag-manage-row");
+    row.appendChild(el("span","tag-manage-name",g.name));
+    row.appendChild(el("span","tag-manage-meta",g.tags.join(", ")));
+    var del=el("button","tag-manage-rename-btn","해제"); del.addEventListener("click",function(){ deleteTagGroup(g.id); });
+    row.appendChild(del);
+    wrap.appendChild(row);
+  });
+}
+function deleteTagGroup(id){
+  state.tagGroups=(state.tagGroups||[]).filter(function(g){ return g.id!==id; });
+  save(); renderTagGroupSelectList(); renderTagGroupList();
+  if(activeTab==="ledger" && ledgerSub==="tags") renderTagAnalysis();
+  toast("그룹을 해제했어요");
+}
 var _renamingTag=null;
 var _tagManageExpanded=false;
 function renderTagManageList(){
@@ -2992,7 +3081,7 @@ function renderSettings(){
     $("#profile-eye").textContent="보기";
   }
   if(settingsSub==="fav") renderFavSettings();
-  else if(settingsSub==="tag"){ renderBulkTagList(); renderTagManageList(); }
+  else if(settingsSub==="tag"){ renderBulkTagList(); renderTagManageList(); renderTagGroupSelectList(); renderTagGroupList(); }
 }
 function toggleProfile(){ profileShown=!profileShown; renderSettings(); }
 

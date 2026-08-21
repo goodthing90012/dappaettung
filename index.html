@@ -2847,19 +2847,44 @@ function createTagGroup(){
   if(activeTab==="ledger" && ledgerSub==="tags") renderTagAnalysis();
   toast("'"+name+"' 그룹을 만들었어요");
 }
+var _renamingGroupId=null;
 function renderTagGroupList(){
   var wrap=$("#tag-group-list"); if(!wrap) return;
   wrap.innerHTML="";
   var groups=state.tagGroups||[];
   if(!groups.length){ wrap.appendChild(el("p","empty","만든 그룹이 없어요.")); return; }
   groups.forEach(function(g){
-    var row=el("div","tag-manage-row");
-    row.appendChild(el("span","tag-manage-name",g.name));
-    row.appendChild(el("span","tag-manage-meta",g.tags.join(", ")));
-    var del=el("button","tag-manage-rename-btn","해제"); del.addEventListener("click",function(){ deleteTagGroup(g.id); });
-    row.appendChild(del);
-    wrap.appendChild(row);
+    if(_renamingGroupId===g.id){
+      var erow=el("div","tag-manage-edit-row");
+      var inp=document.createElement("input"); inp.className="tag-manage-input"; inp.type="text"; inp.value=g.name; inp.id="group-rename-input";
+      inp.addEventListener("keydown",function(ev){ if(ev.key==="Enter") saveRenameGroup(g.id); });
+      erow.appendChild(inp);
+      var sv=el("button","btn primary ee-btn","저장"); sv.addEventListener("click",function(){ saveRenameGroup(g.id); });
+      var cn=el("button","btn ghost ee-btn","취소"); cn.addEventListener("click",function(){ _renamingGroupId=null; renderTagGroupList(); });
+      erow.appendChild(sv); erow.appendChild(cn);
+      wrap.appendChild(erow);
+    } else {
+      var row=el("div","tag-manage-row");
+      row.appendChild(el("span","tag-manage-name",g.name));
+      row.appendChild(el("span","tag-manage-meta",g.tags.join(", ")));
+      var rn=el("button","tag-manage-rename-btn","이름 변경"); rn.addEventListener("click",function(){ _renamingGroupId=g.id; renderTagGroupList(); setTimeout(function(){ var i=$("#group-rename-input"); if(i){ i.focus(); i.select(); } },50); });
+      row.appendChild(rn);
+      var del=el("button","tag-manage-rename-btn","해제"); del.addEventListener("click",function(){ deleteTagGroup(g.id); });
+      row.appendChild(del);
+      wrap.appendChild(row);
+    }
   });
+}
+function saveRenameGroup(id){
+  var inp=$("#group-rename-input"); if(!inp) return;
+  var newName=inp.value.trim();
+  _renamingGroupId=null;
+  if(!newName){ renderTagGroupList(); return; }
+  var g=(state.tagGroups||[]).find(function(x){return x.id===id;});
+  if(g){ g.name=newName; save(); }
+  renderTagGroupList();
+  if(activeTab==="ledger" && ledgerSub==="tags") renderTagAnalysis();
+  toast("그룹 이름을 바꿨어요");
 }
 function deleteTagGroup(id){
   state.tagGroups=(state.tagGroups||[]).filter(function(g){ return g.id!==id; });

@@ -2026,7 +2026,7 @@ function renderShop(){
   });
 }
 /* ---- root ---- */
-function go(tab){ activeTab=tab; render(); }
+function go(tab){ if(tab==="ledger" && activeTab!=="ledger") computeFavChipOrder(); activeTab=tab; render(); }
 function subGo(s){ ledgerSub=s; render(); }
 function goToFavAdd(){
   settingsSub="fav";
@@ -3194,14 +3194,22 @@ function useFavSplit(id){
   if(sp){ sp.hidden=false; sp.value=""; sp.focus(); }
   var kcalEl=$("#food-kcal"); if(kcalEl){ try{ kcalEl.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} }
 }
+var _favChipOrder=null;
+function computeFavChipOrder(){
+  _favChipOrder = state.favs.slice().sort(function(a,b){ return (b.useCount||0)-(a.useCount||0); }).map(function(f){ return f.id; });
+}
 function renderFavChips(){
   var wrap=$("#fav-chips"); if(!wrap) return;
   var srch=$("#fav-chip-search");
-  if(!state.favs.length){ wrap.hidden=true; wrap.innerHTML=""; if(srch)srch.hidden=true; return; }
+  if(!state.favs.length){ wrap.hidden=true; wrap.innerHTML=""; if(srch)srch.hidden=true; _favChipOrder=null; return; }
   if(srch)srch.hidden=false;
+  if(!_favChipOrder) computeFavChipOrder();
+  var byId={}; state.favs.forEach(function(f){ byId[f.id]=f; });
+  var ordered=_favChipOrder.map(function(id){ return byId[id]; }).filter(Boolean);
+  var seen={}; ordered.forEach(function(f){ seen[f.id]=true; });
+  state.favs.forEach(function(f){ if(!seen[f.id]) ordered.push(f); }); // 새로 생긴 즐겨찾기는 끝에 추가
   var q=((srch&&srch.value)||"").trim().toLowerCase();
-  var list=state.favs.filter(function(f){ return !q||((f.name||"").toLowerCase().indexOf(q)>=0); });
-  list=list.slice().sort(function(a,b){ return (b.useCount||0)-(a.useCount||0); });
+  var list=ordered.filter(function(f){ return !q||((f.name||"").toLowerCase().indexOf(q)>=0); });
   wrap.hidden=false; wrap.innerHTML="";
   if(!list.length){ wrap.appendChild(el("span","fav-none","검색 결과 없음")); return; }
   var CAP=8, showAll = q!=="" || _favExpanded || list.length<=CAP;

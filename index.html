@@ -404,6 +404,9 @@ input,select{-webkit-user-select:text;user-select:text;}
 .input-card .day-list{margin-top:12px;margin-bottom:0;}
 .quick-row{display:flex;gap:8px;margin-bottom:12px;}
 .quick-row .fast-btn{flex:1;width:auto;margin-bottom:0;}
+.spend-tag-toggle{flex-shrink:0;width:44px;border:1px dashed var(--line);background:#fff;border-radius:12px;
+  font-size:16px;cursor:pointer;color:var(--ink-soft);}
+.spend-tag-toggle:active{opacity:.6;}
 .fast-btn.spend{border-color:#f0c98a;color:#d98a2b;}
 .fast-btn.spend:active{transform:scale(.99);}
 .fast-btn{width:100%;border:1px dashed var(--line);background:#fff;color:var(--ink-soft);
@@ -828,7 +831,9 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <div class="quick-row">
         <button id="fast-btn" class="fast-btn" onclick="toggleFast()">🚫 이 날 안 먹음</button>
         <button id="spend-btn" class="fast-btn spend" onclick="spendAll()">💸 한방에 텅</button>
+        <button id="spend-tag-toggle" class="spend-tag-toggle" aria-label="한방에 텅 태그 달기" onclick="toggleSpendTag()">🏷️</button>
       </div>
+      <input id="spend-tag" class="in-tag" type="text" list="tag-options" placeholder="🏷️ 한방에 텅 태그 (선택, 예: 회식)" hidden />
       <input id="fav-chip-search" class="fav-search-in" type="text" placeholder="즐겨찾기 검색" oninput="renderFavChips()" hidden />
       <div id="fav-chips" class="fav-chips" hidden></div>
       <button id="fav-add-btn" class="fav-add-btn" onclick="goToFavAdd()">＋ 즐겨찾기 등록</button>
@@ -2359,7 +2364,27 @@ function commitEntry(kind){
   }
   var k=selectedDate||todayKey(), d=ensureDay(k);
   var _prevBalForLoan=balance();
-  function doAdd(){ if(kind==="food") d.fasted=false; var entry={id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:name,kcal:kcal}; if(kind==="food" && tag) entry.tag=tag; (kind==="food"?d.food:d.exercise).push(entry); if(kind==="food" && _favSplitSourceId){ var srcFav=state.favs.find(function(x){return x.id===_favSplitSourceId;}); if(srcFav) srcFav.useCount=(srcFav.useCount||0)+1; _favSplitSourceId=null; } save(); if(kind==="food"){ notifyIfNewLoan(_prevBalForLoan); if(tag) refreshTagOptions(); } nameEl.value=""; kcalEl.value=""; if(kind==="food"){ var tagEl=$("#food-tag"); if(tagEl) tagEl.value=""; var sp2=$("#food-split"); if(sp2){ sp2.value=""; sp2.hidden=true; } var st2=$("#food-split-total"), se2=$("#food-split-eaten"); if(st2)st2.value=""; if(se2)se2.value=""; var sr2=$("#slice-row"); if(sr2) sr2.hidden=true; var sm2=$("#split-modes"); if(sm2) sm2.hidden=true; _splitOpen=false; _splitMode="person"; var sbtn=$("#split-toggle"); if(sbtn){ sbtn.className="split-toggle"; sbtn.textContent="🍕 나눠 먹기"; } previewSplit(); } render(); }
+  function doAdd(){
+    if(kind==="food") d.fasted=false;
+    var entry={id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:name,kcal:kcal};
+    if(kind==="food" && tag) entry.tag=tag;
+    (kind==="food"?d.food:d.exercise).push(entry);
+    if(kind==="food" && _favSplitSourceId){ var srcFav=state.favs.find(function(x){return x.id===_favSplitSourceId;}); if(srcFav) srcFav.useCount=(srcFav.useCount||0)+1; _favSplitSourceId=null; }
+    save();
+    if(kind==="food"){ notifyIfNewLoan(_prevBalForLoan); if(tag) refreshTagOptions(); }
+    nameEl.value=""; kcalEl.value="";
+    if(kind==="food"){
+      var tagEl=$("#food-tag"); if(tagEl) tagEl.value="";
+      var sp2=$("#food-split"); if(sp2){ sp2.value=""; sp2.hidden=true; }
+      var st2=$("#food-split-total"), se2=$("#food-split-eaten"); if(st2)st2.value=""; if(se2)se2.value="";
+      var sr2=$("#slice-row"); if(sr2) sr2.hidden=true;
+      var sm2=$("#split-modes"); if(sm2) sm2.hidden=true;
+      _splitOpen=false; _splitMode="person";
+      var sbtn=$("#split-toggle"); if(sbtn){ sbtn.className="split-toggle"; sbtn.textContent="🍕 나눠 먹기"; }
+      previewSplit();
+    }
+    render();
+  }
   if(kind==="food" && !isCheatDay(k)){
     var projected=balanceIfFood(k,kcal);
     if(projected < 0){ confirmSheet("대출할까요?","이거 먹으면 텅장 잔고를 넘어서 "+fmt(-projected)+"kcal를 미리 당겨쓰게 돼요.","그래도 당기기",doAdd); return; }
@@ -2386,15 +2411,26 @@ function toggleFast(){
   d.fasted=!d.fasted; save(); render();
   toast(d.fasted?"단식으로 표시했어요":"단식 표시를 해제했어요");
 }
+function toggleSpendTag(){
+  var t=$("#spend-tag"); if(!t) return;
+  t.hidden=!t.hidden;
+  if(!t.hidden) t.focus(); else t.value="";
+}
 function spendAll(){
   var k=selectedDate||todayKey(), d=ensureDay(k);
   var g=(d.goal||state.goal), eaten=sum(d.food), rem=g-eaten;
   var add = rem>0 ? rem : g;   // 목표 안 채웠으면 남은 만큼, 이미 다 썼으면 목표만큼 더(회식)
+  var tagEl=$("#spend-tag"), tag=((tagEl&&tagEl.value)||"").trim();
   var _prevBalForLoan=balance();
   function doIt(){
     d.fasted=false;
-    d.food.push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7), name:"한방에 텅", kcal:add});
-    save(); notifyIfNewLoan(_prevBalForLoan); render(); toast(rem>0?"오늘 예산을 다 썼어요":"목표만큼 더 먹은 걸로 기록했어요");
+    var entry={id:Date.now()+"-"+Math.random().toString(36).slice(2,7), name:"한방에 텅", kcal:add};
+    if(tag) entry.tag=tag;
+    d.food.push(entry);
+    save(); notifyIfNewLoan(_prevBalForLoan);
+    if(tagEl){ tagEl.value=""; tagEl.hidden=true; }
+    if(tag) refreshTagOptions();
+    render(); toast(rem>0?"오늘 예산을 다 썼어요":"목표만큼 더 먹은 걸로 기록했어요");
   }
   var projected=isCheatDay(k)?0:balanceIfFood(k,add);
   if(projected<0){
@@ -3194,6 +3230,15 @@ function useFavSplit(id){
   if(sp){ sp.hidden=false; sp.value=""; sp.focus(); }
   var kcalEl=$("#food-kcal"); if(kcalEl){ try{ kcalEl.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} }
 }
+function useFavTag(id){
+  var f=state.favs.find(function(x){return x.id===id;});
+  if(!f || f.kind!=="food") return;
+  $("#food-name").value=f.name;
+  $("#food-kcal").value=f.kcal;
+  _favSplitSourceId=id;
+  var tagEl=$("#food-tag");
+  if(tagEl){ tagEl.value=""; tagEl.focus(); try{ tagEl.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} }
+}
 var _favChipOrder=null;
 function computeFavChipOrder(){
   _favChipOrder = state.favs.slice().sort(function(a,b){ return (b.useCount||0)-(a.useCount||0); }).map(function(f){ return f.id; });
@@ -3227,6 +3272,10 @@ function renderFavChips(){
       sb.setAttribute("aria-label","나눠 먹기로 추가");
       sb.setAttribute("onclick","useFavSplit('"+f.id+"')");
       c.appendChild(sb);
+      var tb=el("button","fc-split-btn fc-tag-btn","🏷️");
+      tb.setAttribute("aria-label","태그 달아서 추가");
+      tb.setAttribute("onclick","useFavTag('"+f.id+"')");
+      c.appendChild(tb);
     }
     wrap.appendChild(c);
   });
@@ -3247,7 +3296,8 @@ function useFav(id){
   var k=selectedDate||todayKey(), d=ensureDay(k);
   var _prevBalForLoan=balance();
   function doAdd(){
-    (f.kind==="food"?d.food:d.exercise).push({id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:f.name,kcal:f.kcal});
+    var entry={id:Date.now()+"-"+Math.random().toString(36).slice(2,7),name:f.name,kcal:f.kcal};
+    (f.kind==="food"?d.food:d.exercise).push(entry);
     f.useCount=(f.useCount||0)+1;
     save(); if(f.kind==="food") notifyIfNewLoan(_prevBalForLoan); render(); toast(f.name+" 기록했어요");
   }

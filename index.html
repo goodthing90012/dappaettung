@@ -496,6 +496,9 @@ input,select{-webkit-user-select:text;user-select:text;}
 .led-event-badge{font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;white-space:nowrap;}
 .loan-start-badge{background:#fde2e2;color:#c23b3b;}
 .loan-repaid-badge{background:#dcf5e8;color:#1f8a52;}
+.led-row.skipped{opacity:.6;}
+.skipped-badge{background:#eef1f4;color:var(--ink-soft);}
+.skipped-amt{text-decoration:line-through;}
 .led-amt{font-family:var(--mono);font-weight:700;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;}
 .led-amt.in{color:var(--sky-deep);}.led-amt.out{color:var(--minus);}
 .led-run{font-family:var(--mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums;}
@@ -1708,7 +1711,7 @@ function monthStats(ym){
   var donated=(state.donations||[]).reduce(function(s,dn){ return dn.date&&dn.date.slice(0,7)===ym ? s+dn.amt : s; },0);
   // 이번 달 예금/적금에 넣은 칼로리 (자동납입+예치+수동입금 합계)
   var deposited=0;
-  buildTxns().forEach(function(r){ if(r.savings && r.amt<0 && r.date.slice(0,7)===ym) deposited += -r.amt; });
+  buildTxns().forEach(function(r){ if(r.savings && !r.skipped && r.amt<0 && r.date.slice(0,7)===ym) deposited += -r.amt; });
   // 그 달 안에서의 최고 연속 기록
   var monthKeys=activeKeys().filter(function(k){ return k.slice(0,7)===ym; });
   var best=0, run=0, prev=null;
@@ -2060,7 +2063,7 @@ function render(){
 function renderHome(){
   var k=todayKey(), d=ensureDay(k);
   var consumed=sum(d.food), burned=sum(d.exercise), allowance=(d.goal||state.goal)+burned;
-  var todaySavings=buildTxns().filter(function(x){ return x.date===k && x.savings; }).reduce(function(s,x){ return s+x.amt; },0);
+  var todaySavings=buildTxns().filter(function(x){ return x.date===k && x.savings && !x.skipped; }).reduce(function(s,x){ return s+x.amt; },0);
   var left=allowance-consumed+todaySavings;
   $("#hero-left").textContent=signed(left); $("#hero-left").className="hero-num "+(left<0?"neg":"");
   $("#hero-caption").textContent=left<0?"오늘 텅장을 넘겼어요":"오늘 더 먹을 수 있어요";
@@ -2495,15 +2498,16 @@ function renderPassbook(){
   var frag=document.createDocumentFragment();
   dates.forEach(function(dk){
     byDate[dk].forEach(function(x,idx){
-      var row=el("div","led-row"+(x.budget?" budget":" sub")+(x.savings?" savings":"")+(x.bal<0?" loan":"")+(x.loanStart?" loan-start":"")+(x.loanRepaid?" loan-repaid":"")); row.setAttribute("onclick","selectDate('"+dk+"')");
+      var row=el("div","led-row"+(x.budget?" budget":" sub")+(x.savings?" savings":"")+(x.bal<0?" loan":"")+(x.loanStart?" loan-start":"")+(x.loanRepaid?" loan-repaid":"")+(x.skipped?" skipped":"")); row.setAttribute("onclick","selectDate('"+dk+"')");
       var dc=el("div","led-date"); if(idx===0){ dc.innerHTML=shortDate(dk)+"<span>"+weekdayKr(dk)+"</span>"; }
       row.appendChild(dc);
       var memoCell=el("div","led-memo");
       memoCell.appendChild(el("span","led-memo-text",x.memo));
+      if(x.skipped) memoCell.appendChild(el("span","led-event-badge skipped-badge","⏭️ 잔액부족으로 건너뜀"));
       if(x.loanStart) memoCell.appendChild(el("span","led-event-badge loan-start-badge","💸 대출 시작"));
       if(x.loanRepaid) memoCell.appendChild(el("span","led-event-badge loan-repaid-badge","🎉 대출 상환"));
       row.appendChild(memoCell);
-      row.appendChild(el("div","led-amt "+(x.amt<0?"out":"in"),signed(x.amt)));
+      row.appendChild(el("div","led-amt "+(x.amt<0?"out":"in")+(x.skipped?" skipped-amt":""),signed(x.amt)));
       if(_showBal) row.appendChild(el("div","led-run"+(x.bal<0?" neg":""),fmt(x.bal)));
       frag.appendChild(row);
     });
@@ -2715,7 +2719,7 @@ function depPrincipal(dp){
   if(dp.kind==="free") return (dp.txns||[]).reduce(function(s,t){return s+t.amt;},0);
   // regular: 실제로 자동이체가 성공한 날만 집계 (잔고 부족한 날은 건너뜀)
   var applied=0;
-  buildTxns().forEach(function(r){ if(r.auto && r.depId===dp.id) applied++; });
+  buildTxns().forEach(function(r){ if(r.auto && !r.skipped && r.depId===dp.id) applied++; });
   return dp.daily*applied;
 }
 function depFull(dp){
@@ -2727,7 +2731,7 @@ function depInterest(dp){
   var termDays=depTermDays(dp), sum=0;
   if(dp.kind==="regular"){
     buildTxns().forEach(function(r){
-      if(r.auto && r.depId===dp.id){
+      if(r.auto && !r.skipped && r.depId===dp.id){
         var heldDays=Math.max(0,daysBetween(r.date,dp.maturityKey));
         sum += dp.daily * (dp.rate/100) * (heldDays/termDays);
       }
@@ -3074,7 +3078,7 @@ function buildTxns(){
   rows.forEach(function(r){
     var prevRun=run;
     if(r.auto){
-      if(run+r.amt<0){ r.skipped=true; return; } // 그날 잔고 부족 → 자동이체 건너뜀 (연체 아님, 다음 기회에 재시도 안 함)
+      if(run+r.amt<0){ r.skipped=true; r.bal=run; kept.push(r); return; } // 그날 잔고 부족 → 자동이체 건너뜀 (연체 아님, 다음 기회에 재시도 안 함)
       run+=r.amt;
     } else { run+=r.amt; }
     r.bal=run;
@@ -3089,6 +3093,7 @@ function computeCredit(){
   // 예산 입금(+)은 대출이 아니며, 빚을 완전히 턴 시점은 상환 성공 +1.
   var txns=buildTxns(), prev=0, loans=0, repays=0, monthLoans=0, mk=todayKey().slice(0,7);
   txns.forEach(function(x){
+    if(x.skipped) return;
     if(x.amt<0 && x.bal<0){ loans++; if((x.date||"").slice(0,7)===mk) monthLoans++; }
     else if(prev<0 && x.bal>=0) repays++;
     prev=x.bal;

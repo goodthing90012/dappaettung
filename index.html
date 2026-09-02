@@ -66,6 +66,7 @@ input,select{-webkit-user-select:text;user-select:text;}
 .pay-line b{font-family:var(--mono);font-weight:700;font-variant-numeric:tabular-nums;}
 .pay-line b.minus{color:#ffd9d9;}
 .pay-foot{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;margin-bottom:12px;background:rgba(255,255,255,.22);border-radius:12px;font-size:13px;font-weight:700;}
+.pay-foot-note{font-size:11px;color:rgba(255,255,255,.75);text-align:center;margin:-6px 0 12px;}
 .pay-foot b{font-family:var(--mono);font-weight:800;font-variant-numeric:tabular-nums;}
 .pay-foot b.neg{color:#ffe0a3;}
 
@@ -749,9 +750,10 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <div id="hero-savings-line" class="pay-line" hidden><span>오늘 저금·투자</span><b id="hero-savings" class="minus">−0</b></div>
       </div>
       <div class="pay-foot">
-        <span id="hero-bal-label">모아둔 칼로리 (누적)</span>
+        <span id="hero-bal-label">텅장 잔고 (누적)</span>
         <b id="hero-bal">0</b>
       </div>
+      <div class="pay-foot-note">오늘 것과 별개로, 지금까지 쌓인 전체 잔고예요</div>
       <button id="hero-add" class="hero-btn" onclick="selectDate(todayKey())">＋ 오늘 기록하기</button>
     </div>
 
@@ -2068,7 +2070,7 @@ function renderHome(){
     if(todaySavings!==0){ svLine.hidden=false; svVal.textContent=signed(todaySavings); svVal.className=todaySavings<0?"minus":""; }
     else svLine.hidden=true;
   }
-  var bal=balance(); $("#hero-bal").textContent=signed(bal); $("#hero-bal").className=bal<0?"neg":""; $("#hero-bal-label").textContent=bal<0?"대출 중 (누적)":"모아둔 칼로리 (누적)";
+  var bal=balance(); $("#hero-bal").textContent=signed(bal); $("#hero-bal").className=bal<0?"neg":""; $("#hero-bal-label").textContent=bal<0?"텅장 잔고 (대출 중)":"텅장 잔고 (누적)";
   var cr=computeCredit();
   var NICK=["","텅장 재벌","알뜰 부자","평범 텅민","위태 텅민","텅장 파산"];
   $("#credit-grade").textContent=NICK[cr.grade]; $("#credit-grade").className="credit-grade g"+cr.grade;
@@ -2465,7 +2467,7 @@ function renderPassbook(){
   var startKey=periodStartKey(_fltPeriod), endKey=periodEndKey(_fltPeriod);
   var t=totals(startKey,_fltPeriod==="custom"?endKey:null);
   $("#pb-balance").textContent=signed(t.balance); $("#pb-balance").className="pb-balance "+(t.balance<0?"neg":"");
-  $("#pb-bal-label").textContent=t.balance<0?"대출 잔액":"누적 잔고";
+  $("#pb-bal-label").textContent=t.balance<0?"텅장 잔고 (대출 중)":"텅장 잔고 (누적)";
   $("#pb-saved").textContent="+"+fmt(t.saved); $("#pb-over").textContent="−"+fmt(t.over); $("#pb-earned").textContent="+"+fmt(t.earned);
   var pn=$("#pb-period-note"); if(pn){ if(startKey){ pn.hidden=false; pn.textContent="아래 3개 · "+pLabel(_fltPeriod).replace(" 기간","")+" 기준"; } else { pn.hidden=true; } }
   var lb=$("#loan-banner"); if(lb){ if(t.balance<0){ var _cr=computeCredit(); lb.hidden=false; lb.innerHTML="<div class=\"lb-amt\">🔴 현재 대출 "+fmt(-t.balance)+"kcal</div><div class=\"lb-sub\">이번 달 "+_cr.monthLoans+"회 · 누적 "+_cr.loans+"회 당겨썼어요</div>"; } else { lb.hidden=true; } }

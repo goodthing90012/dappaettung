@@ -750,13 +750,12 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
         <div class="pay-line"><span>기본급 (목표 칼로리)</span><b id="hero-goal">+0</b></div>
         <div class="pay-line"><span>운동 수당</span><b id="hero-burned">+0</b></div>
         <div class="pay-line"><span>칼로리 공제</span><b id="hero-eaten" class="minus">−0</b></div>
-        <div id="hero-savings-line" class="pay-line" hidden><span>오늘 저금·투자</span><b id="hero-savings" class="minus">−0</b></div>
       </div>
       <div class="pay-foot">
         <span id="hero-bal-label">텅장 잔고 (누적)</span>
         <b id="hero-bal">0</b>
       </div>
-      <div class="pay-foot-note">오늘 것과 별개로, 지금까지 쌓인 전체 잔고예요</div>
+      <div id="hero-bal-note" class="pay-foot-note">오늘 것과 별개로, 지금까지 쌓인 전체 잔고예요</div>
       <button id="hero-add" class="hero-btn" onclick="selectDate(todayKey())">＋ 오늘 기록하기</button>
     </div>
 
@@ -2063,17 +2062,14 @@ function render(){
 function renderHome(){
   var k=todayKey(), d=ensureDay(k);
   var consumed=sum(d.food), burned=sum(d.exercise), allowance=(d.goal||state.goal)+burned;
-  var todaySavings=buildTxns().filter(function(x){ return x.date===k && x.savings && !x.skipped; }).reduce(function(s,x){ return s+x.amt; },0);
-  var left=allowance-consumed+todaySavings;
+  var left=allowance-consumed;
   $("#hero-left").textContent=signed(left); $("#hero-left").className="hero-num "+(left<0?"neg":"");
   $("#hero-caption").textContent=left<0?"오늘 텅장을 넘겼어요":"오늘 더 먹을 수 있어요";
   $("#hero-goal").textContent="+"+fmt(d.goal||state.goal); $("#hero-eaten").textContent="−"+fmt(consumed); $("#hero-burned").textContent="+"+fmt(burned);
-  var svLine=$("#hero-savings-line"), svVal=$("#hero-savings");
-  if(svLine){
-    if(todaySavings!==0){ svLine.hidden=false; svVal.textContent=signed(todaySavings); svVal.className=todaySavings<0?"minus":""; }
-    else svLine.hidden=true;
-  }
+  var todaySavings=buildTxns().filter(function(x){ return x.date===k && x.savings && !x.skipped; }).reduce(function(s,x){ return s+x.amt; },0);
   var bal=balance(); $("#hero-bal").textContent=signed(bal); $("#hero-bal").className=bal<0?"neg":""; $("#hero-bal-label").textContent=bal<0?"텅장 잔고 (대출 중)":"텅장 잔고 (누적)";
+  var balNote=$("#hero-bal-note");
+  if(balNote) balNote.textContent = todaySavings!==0 ? ("오늘 것과 별개로, 지금까지 쌓인 전체 잔고예요 (오늘 저금·투자 "+signed(todaySavings)+"kcal 포함)") : "오늘 것과 별개로, 지금까지 쌓인 전체 잔고예요";
   var cr=computeCredit();
   var NICK=["","텅장 재벌","알뜰 부자","평범 텅민","위태 텅민","텅장 파산"];
   $("#credit-grade").textContent=NICK[cr.grade]; $("#credit-grade").className="credit-grade g"+cr.grade;

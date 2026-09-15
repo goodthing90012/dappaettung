@@ -66,6 +66,7 @@ input,select{-webkit-user-select:text;user-select:text;}
 .pay-line b{font-family:var(--mono);font-weight:700;font-variant-numeric:tabular-nums;}
 .pay-line b.minus{color:#ffd9d9;}
 .pay-foot{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;margin-bottom:12px;background:rgba(255,255,255,.22);border-radius:12px;font-size:13px;font-weight:700;}
+.pay-foot.sub{background:rgba(255,255,255,.12);font-size:12px;font-weight:600;margin-top:-8px;padding:9px 12px;}
 .pay-foot-note{font-size:11px;color:rgba(255,255,255,.75);text-align:center;margin:-6px 0 12px;}
 .pay-foot b{font-family:var(--mono);font-weight:800;font-variant-numeric:tabular-nums;}
 .pay-foot b.neg{color:#ffe0a3;}
@@ -754,6 +755,10 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <div class="pay-foot">
         <span id="hero-bal-label">텅장 잔고 (누적)</span>
         <b id="hero-bal">0</b>
+      </div>
+      <div id="hero-dep-line" class="pay-foot sub" hidden>
+        <span>예적금</span>
+        <b id="hero-dep">0</b>
       </div>
       <div id="hero-bal-note" class="pay-foot-note">오늘 것과 별개로, 지금까지 쌓인 전체 잔고예요</div>
       <button id="hero-add" class="hero-btn" onclick="selectDate(todayKey())">＋ 오늘 기록하기</button>
@@ -2068,6 +2073,13 @@ function renderHome(){
   $("#hero-goal").textContent="+"+fmt(d.goal||state.goal); $("#hero-eaten").textContent="−"+fmt(consumed); $("#hero-burned").textContent="+"+fmt(burned);
   var todaySavings=buildTxns().filter(function(x){ return x.date===k && x.savings && !x.skipped; }).reduce(function(s,x){ return s+x.amt; },0);
   var bal=balance(); $("#hero-bal").textContent=signed(bal); $("#hero-bal").className=bal<0?"neg":""; $("#hero-bal-label").textContent=bal<0?"텅장 잔고 (대출 중)":"텅장 잔고 (누적)";
+  var activeDeps=(state.deposits||[]).filter(function(dp){ return dp.status==="active"; });
+  var depTotal=activeDeps.reduce(function(s,dp){ return s+depPrincipal(dp); },0);
+  var depLine=$("#hero-dep-line"), depVal=$("#hero-dep");
+  if(depLine){
+    if(activeDeps.length){ depLine.hidden=false; depVal.textContent=fmt(depTotal); }
+    else depLine.hidden=true;
+  }
   var balNote=$("#hero-bal-note");
   if(balNote) balNote.textContent = todaySavings!==0 ? ("오늘 것과 별개로, 지금까지 쌓인 전체 잔고예요 (오늘 저금·투자 "+signed(todaySavings)+"kcal 포함)") : "오늘 것과 별개로, 지금까지 쌓인 전체 잔고예요";
   var cr=computeCredit();

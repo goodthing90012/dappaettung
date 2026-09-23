@@ -551,6 +551,18 @@ input,select{-webkit-user-select:text;user-select:text;}
 .fav-add-btn{display:block;width:100%;border:1px dashed var(--sky);background:var(--sky-soft);color:var(--sky-deep);
   font-family:inherit;font-weight:700;font-size:13px;padding:10px;border-radius:12px;cursor:pointer;margin-bottom:12px;}
 .fav-add-btn:active{transform:scale(.99);}
+.hist-panel{margin-bottom:12px;}
+.hist-list{display:flex;flex-direction:column;gap:0;max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;}
+.hist-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:#fff;cursor:pointer;}
+.hist-row:last-child{border-bottom:none;}
+.hist-row:active{background:var(--sky-soft);}
+.hist-kind{font-size:11px;font-weight:800;padding:2px 6px;border-radius:999px;flex-shrink:0;}
+.hist-kind.food{background:#ffe9ea;color:#d23a4c;}
+.hist-kind.ex{background:#e7f3ff;color:var(--sky-deep);}
+.hist-name{flex:1;font-size:14px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hist-kcal{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink-soft);flex-shrink:0;}
+.hist-count{font-size:11px;color:var(--ink-soft);flex-shrink:0;}
+.hist-more{display:block;width:100%;text-align:center;background:#f7fafd;border:none;font-family:inherit;font-weight:700;font-size:12px;color:var(--sky-deep);padding:10px;cursor:pointer;}
 .in-tag{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;padding:8px 10px;
   font-family:inherit;font-size:12px;background:#fff;color:var(--ink);margin:6px 0;}
 .ee-tag{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:10px;padding:7px 9px;
@@ -851,6 +863,11 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
       <input id="fav-chip-search" class="fav-search-in" type="text" placeholder="즐겨찾기 검색" oninput="renderFavChips()" hidden />
       <div id="fav-chips" class="fav-chips" hidden></div>
       <button id="fav-add-btn" class="fav-add-btn" onclick="goToFavAdd()">＋ 즐겨찾기 등록</button>
+      <button id="hist-search-toggle" class="fav-add-btn" onclick="toggleHistSearch()">🔍 지난 기록에서 찾기</button>
+      <div id="hist-search-panel" class="hist-panel" hidden>
+        <input id="hist-search-in" class="fav-search-in" type="text" placeholder="이름으로 검색 (예: 김밥)" oninput="renderHistResults()" onkeydown="if(event.key==='Enter')event.preventDefault()" />
+        <div id="hist-results" class="hist-list"></div>
+      </div>
       <div class="adders">
         <div class="adder">
           <input id="food-name" class="in-name" type="text" placeholder="먹은 것 (예: 점심)" />
@@ -3342,6 +3359,74 @@ function useFav(id){
     if(projected < 0){ confirmSheet("대출할까요?","이거 먹으면 텅장 잔고를 넘어서 "+fmt(-projected)+"kcal를 미리 당겨쓰게 돼요.","그래도 당기기",doAdd); return; }
   }
   doAdd();
+}
+var _histIndex=null, _histExpanded=false;
+function buildHistoryIndex(){
+  var map={};
+  function idx(kind,e,dateKey){
+    var name=(e.name||"").trim(); if(!name||!e.kcal) return;
+    var key=kind+"|"+name.toLowerCase();
+    if(!map[key]) map[key]={kind:kind,name:name,count:0,lastKcal:e.kcal,lastDate:dateKey,lastTag:e.tag||""};
+    var it=map[key]; it.count++;
+    if(dateKey>=it.lastDate){ it.lastKcal=e.kcal; it.lastDate=dateKey; it.lastTag=e.tag||it.lastTag; it.name=name; }
+  }
+  Object.keys(state.days||{}).forEach(function(k){
+    var d=state.days[k];
+    (d.food||[]).forEach(function(e){ idx("food",e,k); });
+    (d.exercise||[]).forEach(function(e){ idx("exercise",e,k); });
+  });
+  return Object.keys(map).map(function(k){ return map[k]; });
+}
+function toggleHistSearch(){
+  var panel=$("#hist-search-panel"); if(!panel) return;
+  panel.hidden=!panel.hidden;
+  if(!panel.hidden){
+    _histIndex=buildHistoryIndex();
+    _histExpanded=false;
+    var srch=$("#hist-search-in"); if(srch){ srch.value=""; srch.focus(); }
+    renderHistResults();
+  }
+}
+function renderHistResults(){
+  var wrap=$("#hist-results"); if(!wrap) return;
+  if(!_histIndex) _histIndex=buildHistoryIndex();
+  var q=(($("#hist-search-in")||{}).value||"").trim().toLowerCase();
+  var list=_histIndex.filter(function(it){ return !q||it.name.toLowerCase().indexOf(q)>=0; });
+  list.sort(function(a,b){ return (b.count-a.count)||(b.lastDate<a.lastDate?1:-1); });
+  wrap.innerHTML="";
+  if(!list.length){ wrap.appendChild(el("div","fav-none","검색 결과 없음")); return; }
+  var CAP=8, showAll = q!=="" || _histExpanded || list.length<=CAP;
+  var shown = showAll ? list : list.slice(0,CAP);
+  shown.forEach(function(it){
+    var row=el("div","hist-row");
+    row.setAttribute("onclick","useHistEntry('"+it.kind+"',"+JSON.stringify(it.name)+","+it.lastKcal+","+JSON.stringify(it.lastTag||"")+")");
+    row.appendChild(el("span","hist-kind "+(it.kind==="food"?"food":"ex"), it.kind==="food"?"먹음":"운동"));
+    row.appendChild(el("span","hist-name",it.name));
+    row.appendChild(el("span","hist-kcal",(it.kind==="food"?"−":"+")+fmt(it.lastKcal)));
+    row.appendChild(el("span","hist-count",it.count+"회"));
+    wrap.appendChild(row);
+  });
+  if(!showAll){
+    var more=el("button","hist-more","더보기 +"+(list.length-CAP));
+    more.setAttribute("onclick","toggleHistExpand()");
+    wrap.appendChild(more);
+  } else if(q==="" && list.length>CAP){
+    var less=el("button","hist-more","접기 ▴");
+    less.setAttribute("onclick","toggleHistExpand()");
+    wrap.appendChild(less);
+  }
+}
+function toggleHistExpand(){ _histExpanded=!_histExpanded; renderHistResults(); }
+function useHistEntry(kind,name,kcal,tag){
+  if(kind==="food"){
+    $("#food-name").value=name; $("#food-kcal").value=kcal;
+    var tagEl=$("#food-tag"); if(tagEl) tagEl.value=tag||"";
+    var kEl=$("#food-kcal"); if(kEl){ kEl.focus(); try{ kEl.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} }
+  } else {
+    $("#ex-name").value=name; $("#ex-kcal").value=kcal;
+    var kEl2=$("#ex-kcal"); if(kEl2){ kEl2.focus(); try{ kEl2.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} }
+  }
+  toast(name+" 불러왔어요 · 확인 후 등록하세요");
 }
 function openGoal(){
   $("#goal-input").value=state.goal; var p=state.profile||{};

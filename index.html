@@ -676,7 +676,9 @@ body.modal-open{overflow:hidden;}
 .entry-tag-x{flex-shrink:0;opacity:.6;font-size:9px;line-height:1;padding:2px;cursor:pointer;}
 .entry-tag-x:active{opacity:1;}
 .entry-qty-badge{font-size:10px;font-weight:800;color:var(--sky-deep);background:var(--sky-soft);padding:3px 7px;border-radius:6px;flex-shrink:0;}
-.fav-chip .fc-qty-btn{background:var(--sky-soft);color:var(--sky-deep);}
+.fav-chip.has-split{overflow:hidden;}
+.fc-qty-btn{font-size:11px;font-weight:800;color:var(--sky-deep);padding:8px 12px 8px 9px;}
+.pill-main .entry-qty-badge{align-self:flex-start;}
 .entry-del{border:none;background:none;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:4px 6px;}
 
 .slice-row{display:flex;align-items:center;gap:6px;margin:-2px 0 8px;padding:2px 0;font-size:13px;color:var(--ink-soft);font-weight:600;flex-wrap:wrap;}
@@ -693,6 +695,9 @@ body.modal-open{overflow:hidden;}
 .split-lbl{font-size:12px;color:var(--ink-soft);font-weight:700;flex-shrink:0;}
 .split-in{width:72px;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-family:inherit;font-size:13px;background:#f7fafd;}
 .split-preview{font-size:12px;color:var(--sky-deep);font-weight:700;font-family:var(--mono);margin:2px 2px 4px;min-height:0;}
+.split-preview:empty{display:none;}
+.opt-row{display:flex;gap:6px;flex-wrap:wrap;}
+.opt-row .split-toggle{margin:0;}
 .adders{display:flex;flex-direction:column;gap:8px;}
 .adder{display:flex;gap:6px;}
 .in-name{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-family:inherit;font-size:14px;background:#f7fafd;}
@@ -878,7 +883,10 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
           <button id="add-food" class="btn food" onclick="commitEntry('food')">먹음</button>
         </div>
         <input id="food-tag" class="in-tag" type="text" list="tag-options" placeholder="🏷️ 태그 (선택, 예: 배달음식)" onkeydown="if(event.key==='Enter')commitEntry('food')" />
-        <button id="split-toggle" class="split-toggle" onclick="toggleSplit()">🍕 나눠 먹기</button>
+        <div class="opt-row">
+          <button id="split-toggle" class="split-toggle" onclick="toggleSplit()">🍕 나눠 먹기</button>
+          <button id="qty-toggle" class="split-toggle" onclick="toggleQty()">× 개수</button>
+        </div>
         <div id="split-modes" class="split-modes" hidden>
           <button id="sm-person" class="split-mode on" onclick="setSplitMode('person')">인원 나누기</button>
           <button id="sm-slice" class="split-mode" onclick="setSplitMode('slice')">조각 계산</button>
@@ -891,7 +899,6 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
           <span>조각</span>
         </div>
         <div id="split-preview" class="split-preview"></div>
-        <button id="qty-toggle" class="split-toggle" onclick="toggleQty()">🔢 개수</button>
         <div id="qty-row" class="split-row" hidden>
           <span class="split-lbl">개수</span>
           <input id="food-qty" class="in-split-sm" type="number" inputmode="numeric" placeholder="2" oninput="previewQty()" onkeydown="if(event.key==='Enter')commitEntry('food')" />
@@ -903,7 +910,9 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
           <input id="ex-kcal" class="in-kcal" type="number" inputmode="numeric" placeholder="kcal" oninput="previewExQty()" onkeydown="if(event.key==='Enter')commitEntry('exercise')" />
           <button id="add-ex" class="btn ex" onclick="commitEntry('exercise')">운동</button>
         </div>
-        <button id="ex-qty-toggle" class="split-toggle" onclick="toggleExQty()">🔢 개수</button>
+        <div class="opt-row">
+          <button id="ex-qty-toggle" class="split-toggle" onclick="toggleExQty()">× 개수</button>
+        </div>
         <div id="ex-qty-row" class="split-row" hidden>
           <span class="split-lbl">개수</span>
           <input id="ex-qty" class="in-split-sm" type="number" inputmode="numeric" placeholder="2" oninput="previewExQty()" onkeydown="if(event.key==='Enter')commitEntry('exercise')" />
@@ -2209,10 +2218,16 @@ function renderInput(){
         eTag.setAttribute("onkeydown","if(event.key==='Enter')saveEntryEdit()");
         wrap.appendChild(eTag);
       }
+      var optRow=el("div","opt-row");
+      if(r.kind==="food"){
+        var stog=el("button","split-toggle"+(_eSplitOpen?" on":""),_eSplitOpen?"🍕 나눠 먹기 끄기":"🍕 나눠 먹기"); stog.id="ee-split-toggle"; stog.setAttribute("onclick","toggleESplit()");
+        optRow.appendChild(stog);
+      }
+      var qtog=el("button","split-toggle"+(_eQtyOpen?" on":""),_eQtyOpen?"× 개수 끄기":"× 개수"); qtog.id="ee-qty-toggle"; qtog.setAttribute("onclick","toggleEQty()");
+      optRow.appendChild(qtog);
+      wrap.appendChild(optRow);
       if(r.kind==="food"){
         var sblock=el("div","ee-split-block");
-        var stog=el("button","split-toggle"+(_eSplitOpen?" on":""),_eSplitOpen?"🍕 나눠 먹기 끄기":"🍕 나눠 먹기"); stog.id="ee-split-toggle"; stog.setAttribute("onclick","toggleESplit()");
-        sblock.appendChild(stog);
         var smodes=el("div","split-modes"); smodes.id="ee-split-modes"; smodes.hidden=!_eSplitOpen;
         var smP=el("button","split-mode"+(_eSplitMode==="person"?" on":""),"인원 나누기"); smP.id="ee-sm-person"; smP.setAttribute("onclick","setESplitMode('person')");
         var smS=el("button","split-mode"+(_eSplitMode==="slice"?" on":""),"조각 계산"); smS.id="ee-sm-slice"; smS.setAttribute("onclick","setESplitMode('slice')");
@@ -2234,8 +2249,6 @@ function renderInput(){
         wrap.appendChild(sblock);
       }
       var qblock=el("div","ee-split-block");
-      var qtog=el("button","split-toggle"+(_eQtyOpen?" on":""),_eQtyOpen?"🔢 개수 끄기":"🔢 개수"); qtog.id="ee-qty-toggle"; qtog.setAttribute("onclick","toggleEQty()");
-      qblock.appendChild(qtog);
       var qrow=el("div","split-row"); qrow.id="ee-qty-row"; qrow.hidden=!_eQtyOpen;
       qrow.appendChild(el("span","split-lbl","개수"));
       var qin=document.createElement("input"); qin.id="ee-qty"; qin.className="in-split-sm"; qin.type="number"; qin.setAttribute("inputmode","numeric"); qin.setAttribute("placeholder","2"); qin.value=hasQty?r.qty:"";
@@ -2352,7 +2365,7 @@ function toggleESplit(){
     _eQtyOpen=false;
     var qr=$("#ee-qty-row"), qb=$("#ee-qty-toggle"), qi=$("#ee-qty");
     if(qr) qr.hidden=true;
-    if(qb){ qb.className="split-toggle"; qb.textContent="🔢 개수"; }
+    if(qb){ qb.className="split-toggle"; qb.textContent="× 개수"; }
     if(qi) qi.value="";
     previewEQty();
   }
@@ -2364,7 +2377,7 @@ function toggleEQty(){
   _eQtyOpen=!_eQtyOpen;
   var row=$("#ee-qty-row"), btn=$("#ee-qty-toggle"), qi=$("#ee-qty");
   if(row) row.hidden=!_eQtyOpen;
-  if(btn){ btn.className="split-toggle"+(_eQtyOpen?" on":""); btn.textContent=_eQtyOpen?"🔢 개수 끄기":"🔢 개수"; }
+  if(btn){ btn.className="split-toggle"+(_eQtyOpen?" on":""); btn.textContent=_eQtyOpen?"× 개수 끄기":"× 개수"; }
   if(!_eQtyOpen && qi) qi.value="";
   if(_eQtyOpen && _eSplitOpen){
     _eSplitOpen=false;
@@ -2439,7 +2452,7 @@ function closeQtyUI(){
   _qtyOpen=false;
   var row=$("#qty-row"), btn=$("#qty-toggle"), qi=$("#food-qty");
   if(row) row.hidden=true;
-  if(btn){ btn.className="split-toggle"; btn.textContent="🔢 개수"; }
+  if(btn){ btn.className="split-toggle"; btn.textContent="× 개수"; }
   if(qi) qi.value="";
   previewQty();
 }
@@ -2447,7 +2460,7 @@ function closeExQtyUI(){
   _exQtyOpen=false;
   var row=$("#ex-qty-row"), btn=$("#ex-qty-toggle"), qi=$("#ex-qty");
   if(row) row.hidden=true;
-  if(btn){ btn.className="split-toggle"; btn.textContent="🔢 개수"; }
+  if(btn){ btn.className="split-toggle"; btn.textContent="× 개수"; }
   if(qi) qi.value="";
   previewExQty();
 }
@@ -2456,7 +2469,7 @@ function toggleQty(){
   _qtyOpen=!_qtyOpen;
   var row=$("#qty-row"), btn=$("#qty-toggle"), qi=$("#food-qty");
   if(row) row.hidden=!_qtyOpen;
-  if(btn){ btn.className="split-toggle"+(_qtyOpen?" on":""); btn.textContent=_qtyOpen?"🔢 개수 끄기":"🔢 개수"; }
+  if(btn){ btn.className="split-toggle"+(_qtyOpen?" on":""); btn.textContent=_qtyOpen?"× 개수 끄기":"× 개수"; }
   if(!_qtyOpen && qi) qi.value="";
   if(_qtyOpen && _splitOpen){ _splitOpen=false; var sm=$("#split-modes"), sr=$("#slice-row"), sbtn=$("#split-toggle"), sp=$("#food-split"); if(sm)sm.hidden=true; if(sr)sr.hidden=true; if(sbtn){sbtn.className="split-toggle";sbtn.textContent="🍕 나눠 먹기";} if(sp){sp.value="";sp.hidden=true;} var st=$("#food-split-total"),se=$("#food-split-eaten"); if(st)st.value=""; if(se)se.value=""; _favSplitSourceId=null; previewSplit(); }
   previewQty();
@@ -2466,7 +2479,7 @@ function toggleExQty(){
   _exQtyOpen=!_exQtyOpen;
   var row=$("#ex-qty-row"), btn=$("#ex-qty-toggle"), qi=$("#ex-qty");
   if(row) row.hidden=!_exQtyOpen;
-  if(btn){ btn.className="split-toggle"+(_exQtyOpen?" on":""); btn.textContent=_exQtyOpen?"🔢 개수 끄기":"🔢 개수"; }
+  if(btn){ btn.className="split-toggle"+(_exQtyOpen?" on":""); btn.textContent=_exQtyOpen?"× 개수 끄기":"× 개수"; }
   if(!_exQtyOpen && qi) qi.value="";
   previewExQty();
   if(_exQtyOpen && qi) qi.focus();
@@ -3445,7 +3458,7 @@ function useFavQty(id){
     _qtyOpen=true;
     var row=$("#qty-row"), btn=$("#qty-toggle"), qi=$("#food-qty");
     if(row) row.hidden=false;
-    if(btn){ btn.className="split-toggle on"; btn.textContent="🔢 개수 끄기"; }
+    if(btn){ btn.className="split-toggle on"; btn.textContent="× 개수 끄기"; }
     if(qi){ qi.value=""; qi.focus(); }
     previewQty();
     var kcalEl=$("#food-kcal"); if(kcalEl){ try{ kcalEl.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} }
@@ -3455,7 +3468,7 @@ function useFavQty(id){
     _exQtyOpen=true;
     var row2=$("#ex-qty-row"), btn2=$("#ex-qty-toggle"), qi2=$("#ex-qty");
     if(row2) row2.hidden=false;
-    if(btn2){ btn2.className="split-toggle on"; btn2.textContent="🔢 개수 끄기"; }
+    if(btn2){ btn2.className="split-toggle on"; btn2.textContent="× 개수 끄기"; }
     if(qi2){ qi2.value=""; qi2.focus(); }
     previewExQty();
     var kcalEl2=$("#ex-kcal"); if(kcalEl2){ try{ kcalEl2.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} }
@@ -3499,7 +3512,7 @@ function renderFavChips(){
       tb.setAttribute("onclick","useFavTag('"+f.id+"')");
       c.appendChild(tb);
     }
-    var qb=el("button","fc-split-btn fc-qty-btn","🔢");
+    var qb=el("button","fc-split-btn fc-qty-btn","개수");
     qb.setAttribute("aria-label","개수 지정해서 추가");
     qb.setAttribute("onclick","useFavQty('"+f.id+"')");
     c.appendChild(qb);
@@ -3605,7 +3618,7 @@ function useHistEntry(kind,name,kcal,tag){
     previewExQty();
     var kEl2=$("#ex-kcal"); if(kEl2){ kEl2.focus(); try{ kEl2.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} }
   }
-  toast(name+" 불러왔어요 · 개수(🔢)로 여러 개도 등록할 수 있어요");
+  toast(name+" 불러왔어요 · 「× 개수」로 여러 개도 등록할 수 있어요");
 }
 function openGoal(){
   $("#goal-input").value=state.goal; var p=state.profile||{};

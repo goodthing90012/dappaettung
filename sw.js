@@ -1,5 +1,5 @@
 /* 다뺐텅 service worker */
-const CACHE = "dameoktung-v140";
+const CACHE = "dameoktung-v141";
 const ASSETS = [
   "./",
   "./index.html",

@@ -677,6 +677,7 @@ body.modal-open{overflow:hidden;}
 .entry-tag-x:active{opacity:1;}
 .entry-qty-badge{font-size:10px;font-weight:800;color:var(--sky-deep);background:var(--sky-soft);padding:3px 7px;border-radius:6px;flex-shrink:0;}
 .fav-chip.has-split{overflow:hidden;}
+.fav-chip.ex.has-split .fc-main{padding-right:12px;}
 .fc-qty-btn{font-size:11px;font-weight:800;color:var(--sky-deep);padding:8px 12px 8px 9px;}
 .pill-main .entry-qty-badge{align-self:flex-start;}
 .entry-del{border:none;background:none;color:var(--ink-soft);font-size:13px;cursor:pointer;padding:4px 6px;}
@@ -910,15 +911,6 @@ input:focus,select:focus{outline:2px solid var(--sky);outline-offset:-1px;}
           <input id="ex-kcal" class="in-kcal" type="number" inputmode="numeric" placeholder="kcal" oninput="previewExQty()" onkeydown="if(event.key==='Enter')commitEntry('exercise')" />
           <button id="add-ex" class="btn ex" onclick="commitEntry('exercise')">운동</button>
         </div>
-        <div class="opt-row">
-          <button id="ex-qty-toggle" class="split-toggle" onclick="toggleExQty()">× 개수</button>
-        </div>
-        <div id="ex-qty-row" class="split-row" hidden>
-          <span class="split-lbl">개수</span>
-          <input id="ex-qty" class="in-split-sm" type="number" inputmode="numeric" placeholder="2" oninput="previewExQty()" onkeydown="if(event.key==='Enter')commitEntry('exercise')" />
-          <span class="split-lbl">개</span>
-        </div>
-        <div id="ex-qty-preview" class="split-preview"></div>
         <div class="adder">
           <input id="steps-in" class="in-name" type="number" inputmode="numeric" placeholder="걷기 걸음 수" oninput="previewSteps()" onkeydown="if(event.key==='Enter')commitSteps()" />
           <span id="steps-kcal" class="steps-kcal">≈ 0kcal</span>
@@ -3512,10 +3504,12 @@ function renderFavChips(){
       tb.setAttribute("onclick","useFavTag('"+f.id+"')");
       c.appendChild(tb);
     }
-    var qb=el("button","fc-split-btn fc-qty-btn","개수");
-    qb.setAttribute("aria-label","개수 지정해서 추가");
-    qb.setAttribute("onclick","useFavQty('"+f.id+"')");
-    c.appendChild(qb);
+    if(isFood){
+      var qb=el("button","fc-split-btn fc-qty-btn","개수");
+      qb.setAttribute("aria-label","개수 지정해서 추가");
+      qb.setAttribute("onclick","useFavQty('"+f.id+"')");
+      c.appendChild(qb);
+    }
     wrap.appendChild(c);
   });
   if(!showAll){
